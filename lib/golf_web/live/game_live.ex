@@ -3,8 +3,11 @@ defmodule GolfWeb.GameLive do
 
   def render(assigns) do
     ~H"""
-    <script src="https://pixijs.download/release/pixi.js"></script>
+    <script src="https://pixijs.download/release/pixi.js">
+    </script>
+
     <h2>Game</h2>
+
     <div id="game-container" phx-update="ignore"></div>
     """
   end

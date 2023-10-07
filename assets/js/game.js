@@ -18,10 +18,20 @@ if (onGamePage) {
     // antialias: true,
   });
 
-  const sprite = makeCardSprite("AS", 300, 300);
-  app.stage.addChild(sprite);
+  const sprites = {
+    deck: null,
+    tableCards: [],
+    heldCard: null,
+    hands: {bottom: null, left: null, top: null, right: null},
+  }
 
+  draw(app.stage);
   container.appendChild(app.view);
+}
+
+function draw(stage) {
+  const deckSprite = makeCardSprite("2B", GAME_WIDTH / 2, GAME_HEIGHT / 2);
+  stage.addChild(deckSprite);
 }
 
 function cardPath(cardName) {

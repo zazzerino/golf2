@@ -5,6 +5,8 @@ defmodule Golf.Games.Game do
   @statuses [:init, :flip_2, :take, :hold, :flip, :last_take, :last_hold, :last_flip, :over]
 
   schema "games" do
+    has_many :players, Golf.Games.Player
+
     field :status, Ecto.Enum, values: @statuses, default: :init
     field :turn, :integer, default: 0
     field :deck, {:array, :string}
