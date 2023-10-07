@@ -10,8 +10,7 @@ import Config
 config :golf,
   ecto_repos: [Golf.Repo]
 
-config :golf, Golf.Repo,
-  migration_timestamps: [type: :timestamptz]
+config :golf, Golf.Repo, migration_timestamps: [type: :timestamptz]
 
 # Configures the endpoint
 config :golf, GolfWeb.Endpoint,
