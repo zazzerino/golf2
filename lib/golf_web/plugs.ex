@@ -23,8 +23,10 @@ defmodule GolfWeb.Plugs do
         {:ok, user} = Users.create_user()
 
         token = Phoenix.Token.sign(conn, @salt, user.id)
-        user_token = %UserToken{user_id: user.id, token: token}
-        {:ok, _} = Users.insert_user_token(user_token)
+
+        {:ok, _} =
+          %UserToken{user_id: user.id, token: token}
+          |> Users.insert_user_token()
 
         assign_user_to_conn(conn, user.id, token)
         |> put_session(:user_token, token)
