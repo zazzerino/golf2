@@ -15,7 +15,7 @@ if (onGamePage) {
 
   const sprites = {
     deck: null,
-    tableCards: [],
+    tableCards: null,
     heldCard: null,
     hands: {bottom: null, left: null, top: null, right: null},
   }

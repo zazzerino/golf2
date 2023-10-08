@@ -9,7 +9,7 @@ defmodule Golf.Games do
   @hand_size 6
 
   def new_deck(1), do: @card_names
-  def new_deck(num_decks), do: @card_names ++ new_deck(num_decks - 1)
+  def new_deck(num_decks) when num_decks > 1, do: @card_names ++ new_deck(num_decks - 1)
 
   def deal_from_deck([], _) do
     {:error, :empty_deck}
@@ -24,20 +24,36 @@ defmodule Golf.Games do
     {:ok, dealt_cards, deck}
   end
 
+  def deal_from_deck(deck) do
+    with {:ok, [card], deck} <- deal_from_deck(deck, 1) do
+      {:ok, card, deck}
+    end
+  end
+
   def create_game(host_user_id) do
     deck = new_deck(@num_decks) |> Enum.shuffle()
     host_player = %Player{user_id: host_user_id, turn: 0, host?: true}
     %Game{deck: deck, players: [host_player]}
   end
 
-  # def start_game(%Game{status: :init} = game) do
-  #   # deal hands
-  #   num_cards_to_deal = @hand_size * length(game.players)
-  #   {cards_to_deal, deck} = Enum.split(game.deck, num_cards_to_deal)
+  def start_game(%Game{status: :init} = game) do
+    # deal hands
+    num_cards_to_deal = @hand_size * length(game.players)
+    {cards_to_deal, deck} = Enum.split(game.deck, num_cards_to_deal)
 
-  #   hands =
-  #     cards_to_deal
-  #     |> Enum.map(fn card_name -> %{"name" => card_name, "face_up?" => false} end)
-  #     |> Enum.chunk_every(@hand_size)
-  # end
+    hands =
+      cards_to_deal
+      |> Enum.map(fn card_name -> %{"name" => card_name, "face_up?" => false} end)
+      |> Enum.chunk_every(@hand_size)
+
+    players =
+      Enum.zip(game.players, hands)
+      |> Enum.map(fn {player, hand} -> %Player{player | hand: hand} end)
+
+    # deal table card
+    {:ok, card, deck} = deal_from_deck(deck)
+    table_cards = [card | game.table_cards]
+
+    %Game{game | status: :flip_2, deck: deck, table_cards: table_cards, players: players}
+  end
 end

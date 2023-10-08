@@ -31,21 +31,21 @@ defmodule GolfWeb.GameLive do
     else
       _ ->
         {:ok,
-         socket |> redirect(to: ~p"/") |> put_flash(:error, "Game \"#{game_id}\" not found.")}
+         socket |> put_flash(:error, "Game \"#{game_id}\" not found.") |> redirect(to: ~p"/")}
     end
   end
 
   @impl true
   def handle_event("start_game", _value, socket) do
-    game_id = socket.assigns.game.id
-    IO.inspect("starting game #{game_id}")
-    Phoenix.PubSub.broadcast(Golf.PubSub, topic(game_id), :game_started)
+    game = socket.assigns.game
+    {:ok, _} = GamesDb.start_game(game)
+    Phoenix.PubSub.broadcast(Golf.PubSub, topic(game.id), :game_started)
     {:noreply, socket}
   end
 
   @impl true
   def handle_info(:game_started, socket) do
-    IO.inspect("game started")
+    IO.puts("Game started...")
     {:noreply, socket}
   end
 
