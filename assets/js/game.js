@@ -6,19 +6,12 @@ const CARD_SVG_HEIGHT = 336;
 const CARD_SCALE = 0.25;
 
 const DECK_NAME = "2B";
-
 const GAME_URL_REGEX = /\/games\/(\d+)/;
+
 const onGamePage = location.pathname.match(GAME_URL_REGEX);
 
 if (onGamePage) {
   const gameCanvas = document.querySelector("#game-canvas");
-
-  const app = new PIXI.Application({
-    width: GAME_WIDTH,
-    height: GAME_HEIGHT,
-    backgroundColor: 0x2e8b57,
-    // antialias: true,
-  });
 
   const sprites = {
     deck: null,
@@ -27,21 +20,35 @@ if (onGamePage) {
     hands: {bottom: null, left: null, top: null, right: null},
   }
 
-  draw(app.stage);
-  gameCanvas.appendChild(app.view);
+  const pixiApp = new PIXI.Application({
+    width: GAME_WIDTH,
+    height: GAME_HEIGHT,
+    backgroundColor: 0x2e8b57,
+    // antialias: true,
+  });
+
+  drawGame(pixiApp.stage, sprites);
+  gameCanvas.appendChild(pixiApp.view);
 }
 
-function draw(stage) {
+function drawGame(stage, sprites) {
+  drawDeck(stage, sprites);
+}
+
+function drawDeck(stage, sprites) {
+  const prevSprite = sprites.deck;
   const deckSprite = makeCardSprite(DECK_NAME, GAME_WIDTH / 2, GAME_HEIGHT / 2);
+  
   stage.addChild(deckSprite);
-}
+  sprites.deck = deckSprite;
 
-function cardPath(cardName) {
-  return `/images/cards/${cardName}.svg`
+  if (prevSprite) {
+    prevSprite.visible = false;
+  }
 }
 
 function makeCardSprite(cardName, x = 0, y = 0) {
-  const path = cardPath(cardName);
+  const path = `/images/cards/${cardName}.svg`;
   const sprite = PIXI.Sprite.from(path);
 
   sprite.scale.set(CARD_SCALE, CARD_SCALE);

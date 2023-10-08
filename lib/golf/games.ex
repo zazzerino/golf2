@@ -1,7 +1,4 @@
 defmodule Golf.Games do
-  import Ecto.Query
-
-  alias Golf.Repo
   alias Golf.Games.{Game, Player}
 
   @card_names for rank <- ~w(A 2 3 4 5 6 7 8 9 T J Q K),
@@ -9,6 +6,7 @@ defmodule Golf.Games do
                   do: rank <> suit
 
   @num_decks 2
+  @hand_size 6
 
   def new_deck(1), do: @card_names
   def new_deck(num_decks), do: @card_names ++ new_deck(num_decks - 1)
@@ -26,25 +24,20 @@ defmodule Golf.Games do
     {:ok, dealt_cards, deck}
   end
 
-  # db
-
-  def get_game(game_id) do
-    Repo.get(Game, game_id)
-  end
-
   def create_game(host_user_id) do
     deck = new_deck(@num_decks) |> Enum.shuffle()
-
-    Ecto.Multi.new()
-    |> Ecto.Multi.insert(:game, %Game{deck: deck})
-    |> Ecto.Multi.insert(:player, fn %{game: game} ->
-      Ecto.build_assoc(game, :players, %{user_id: host_user_id, turn: 0, host?: true})
-    end)
-    |> Repo.transaction()
+    host_player = %Player{user_id: host_user_id, turn: 0, host?: true}
+    %Game{deck: deck, players: [host_player]}
   end
 
-  # def game_exists?(game_id) do
-  #   from(g in Game, where: [id: ^game_id])
-  #   |> Repo.exists?()
+  # def start_game(%Game{status: :init} = game) do
+  #   # deal hands
+  #   num_cards_to_deal = @hand_size * length(game.players)
+  #   {cards_to_deal, deck} = Enum.split(game.deck, num_cards_to_deal)
+
+  #   hands =
+  #     cards_to_deal
+  #     |> Enum.map(fn card_name -> %{"name" => card_name, "face_up?" => false} end)
+  #     |> Enum.chunk_every(@hand_size)
   # end
 end
