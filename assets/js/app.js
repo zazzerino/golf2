@@ -28,7 +28,8 @@ let Hooks = {};
 Hooks.GameCanvas = {
   mounted() {
     console.log("mounted game canvas");
-    window.addEventListener("phx:gameLoaded", e => {
+
+    window.addEventListener("phx:game-loaded", e => {
       console.log("game loaded: ", e.detail);
     });
   }

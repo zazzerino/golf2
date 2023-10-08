@@ -3,7 +3,7 @@ defmodule GolfWeb.Plugs do
   alias Golf.Users
   alias Golf.Users.UserToken
 
-  @salt "_golf_salt_787131216"
+  @salt "user_auth"
   @user_cookie "_golf_user"
   @cookie_options [sign: true, same_site: "Lax"]
 

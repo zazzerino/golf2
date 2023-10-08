@@ -5,8 +5,9 @@ const CARD_SVG_WIDTH = 240;
 const CARD_SVG_HEIGHT = 336;
 const CARD_SCALE = 0.25;
 
-const GAME_URL_REGEX = /\/games\/(\d+)/;
+const DECK_NAME = "2B";
 
+const GAME_URL_REGEX = /\/games\/(\d+)/;
 const onGamePage = location.pathname.match(GAME_URL_REGEX);
 
 if (onGamePage) {
@@ -31,7 +32,7 @@ if (onGamePage) {
 }
 
 function draw(stage) {
-  const deckSprite = makeCardSprite("2B", GAME_WIDTH / 2, GAME_HEIGHT / 2);
+  const deckSprite = makeCardSprite(DECK_NAME, GAME_WIDTH / 2, GAME_HEIGHT / 2);
   stage.addChild(deckSprite);
 }
 

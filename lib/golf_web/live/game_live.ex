@@ -14,11 +14,13 @@ defmodule GolfWeb.GameLive do
   def mount(%{"game_id" => game_id}, assigns, socket) do
     with {game_id, _} <- Integer.parse(game_id),
          game when is_struct(game) <- Games.get_game(game_id) do
+      Phoenix.PubSub.subscribe(Golf.PubSub, "game:#{game_id}")
+
       {:ok,
        socket
        |> assign(:page_title, "Game #{game_id}")
        |> assign(:game_id, game_id)
-       |> push_event("gameLoaded", %{"game" => game})}
+       |> push_event("game-loaded", %{"game" => game})}
     else
       _ ->
         {:ok, socket |> redirect(to: ~p"/") |> put_flash(:error, "Game #{game_id} not found.")}
