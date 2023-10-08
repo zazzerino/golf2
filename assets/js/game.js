@@ -3,16 +3,11 @@ const GAME_HEIGHT = 600;
 
 const CARD_SVG_WIDTH = 240;
 const CARD_SVG_HEIGHT = 336;
+
 const CARD_SCALE = 0.25;
-
 const DECK_NAME = "2B";
-const GAME_URL_REGEX = /\/games\/(\d+)/;
 
-const onGamePage = location.pathname.match(GAME_URL_REGEX);
-
-if (onGamePage) {
-  const gameCanvas = document.querySelector("#game-canvas");
-
+export function makeGame(container) {
   const sprites = {
     deck: null,
     tableCards: null,
@@ -20,15 +15,17 @@ if (onGamePage) {
     hands: {bottom: null, left: null, top: null, right: null},
   }
 
-  const pixiApp = new PIXI.Application({
+  const pixi = new PIXI.Application({
     width: GAME_WIDTH,
     height: GAME_HEIGHT,
     backgroundColor: 0x2e8b57,
     // antialias: true,
   });
 
-  drawGame(pixiApp.stage, sprites);
-  gameCanvas.appendChild(pixiApp.view);
+  drawGame(pixi.stage, sprites);
+  container.appendChild(pixi.view);
+
+  return {container, pixi, sprites}
 }
 
 function drawGame(stage, sprites) {

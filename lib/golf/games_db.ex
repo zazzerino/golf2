@@ -36,12 +36,16 @@ defmodule Golf.GamesDb do
       |> Enum.map(fn {old, new} -> Player.changeset(old, %{hand: new.hand}) end)
 
     {:ok, _} =
-      player_changesets
-      |> Enum.reduce(Ecto.Multi.new(), &update_player_changeset/2)
+      Ecto.Multi.new()
       |> Ecto.Multi.update(:game, game_changeset)
+      |> update_player_changesets(player_changesets)
       |> Repo.transaction()
 
     {:ok, started_game}
+  end
+
+  defp update_player_changesets(multi, changesets) do
+    Enum.reduce(changesets, multi, &update_player_changeset/2)
   end
 
   defp update_player_changeset(cs, multi) do

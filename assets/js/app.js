@@ -21,17 +21,25 @@ import "phoenix_html";
 import {Socket} from "phoenix";
 import {LiveSocket} from "phoenix_live_view";
 import topbar from "../vendor/topbar";
-import "./game";
+import {makeGame} from "./game";
 
 let Hooks = {};
 
-Hooks.GameCanvas = {
-  mounted() {
-    console.log("mounted game canvas");
+const GAME_URL_REGEX = /\/games\/(\d+)/;
+const onGamePage = location.pathname.match(GAME_URL_REGEX);
 
-    window.addEventListener("phx:game-loaded", e => {
-      console.log("game loaded: ", e.detail);
-    });
+if (onGamePage) {
+  const gameContainer = document.querySelector("#game-container");
+  makeGame(gameContainer);
+
+  Hooks.GameCanvas = {
+    mounted() {
+      console.log("mounted game canvas");
+
+      window.addEventListener("phx:game-loaded", e => {
+        console.log("game loaded: ", e.detail);
+      });
+    }
   }
 }
 

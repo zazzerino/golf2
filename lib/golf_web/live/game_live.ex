@@ -9,7 +9,7 @@ defmodule GolfWeb.GameLive do
     </script>
 
     <h2>Game <%= @game.id %></h2>
-    <div id="game-canvas" phx-hook="GameCanvas" phx-update="ignore"></div>
+    <div id="game-container" phx-hook="GameCanvas" phx-update="ignore"></div>
 
     <.button :if={@game.status == :init} phx-click="start_game">
       Start Game

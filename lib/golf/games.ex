@@ -43,7 +43,7 @@ defmodule Golf.Games do
 
     hands =
       cards_to_deal
-      |> Enum.map(fn card_name -> %{"name" => card_name, "face_up?" => false} end)
+      |> Enum.map(fn name -> %{"name" => name, "face_up?" => false} end)
       |> Enum.chunk_every(@hand_size)
 
     players =

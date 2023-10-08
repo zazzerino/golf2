@@ -3,8 +3,9 @@ defmodule GolfWeb.GameController do
   alias Golf.GamesDb
 
   def create(conn, _) do
-    user_id = conn.assigns.user.id
-    {:ok, game} = GamesDb.create_game(user_id)
+    token = conn.assigns.user_token
+    user = Golf.Users.get_user_by_token(token)
+    {:ok, game} = GamesDb.create_game(user.id)
 
     conn
     |> put_flash(:info, "Game #{game.id} created.")
