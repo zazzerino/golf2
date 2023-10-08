@@ -4,6 +4,10 @@
 
 <p>Hello <%= @user.username %>(<%= @user.id %>)</p>
 
+<form action="/games" method="post">
+  <input name="_csrf_token" type="hidden" value={get_csrf_token()} />
+  <.button type="submit">Create Game</.button>
+</form>
 <!--
 <div class="left-[40rem] fixed inset-y-0 right-0 z-0 hidden lg:block xl:left-[50rem]">
   <svg

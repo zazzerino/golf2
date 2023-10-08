@@ -20,7 +20,9 @@ defmodule GolfWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+
     live "/games/:game_id", GameLive
+    post "/games", GameController, :create
   end
 
   # Other scopes may use custom stacks.

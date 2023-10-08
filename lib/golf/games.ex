@@ -1,4 +1,6 @@
 defmodule Golf.Games do
+  import Ecto.Query
+
   alias Golf.Repo
   alias Golf.Games.{Game, Player}
 
@@ -26,6 +28,10 @@ defmodule Golf.Games do
 
   # db
 
+  def get_game(game_id) do
+    Repo.get(Game, game_id)
+  end
+
   def create_game(host_user_id) do
     deck = new_deck(@num_decks) |> Enum.shuffle()
 
@@ -36,4 +42,9 @@ defmodule Golf.Games do
     end)
     |> Repo.transaction()
   end
+
+  # def game_exists?(game_id) do
+  #   from(g in Game, where: [id: ^game_id])
+  #   |> Repo.exists?()
+  # end
 end

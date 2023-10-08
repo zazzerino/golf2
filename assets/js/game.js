@@ -5,11 +5,12 @@ const CARD_SVG_WIDTH = 240;
 const CARD_SVG_HEIGHT = 336;
 const CARD_SCALE = 0.25;
 
-const gameUrlRegex = /\/games\/(\d+)/;
-const onGamePage = location.pathname.match(gameUrlRegex);
+const GAME_URL_REGEX = /\/games\/(\d+)/;
+
+const onGamePage = location.pathname.match(GAME_URL_REGEX);
 
 if (onGamePage) {
-  const container = document.querySelector("#game-container");
+  const gameCanvas = document.querySelector("#game-canvas");
 
   const app = new PIXI.Application({
     width: GAME_WIDTH,
@@ -26,7 +27,7 @@ if (onGamePage) {
   }
 
   draw(app.stage);
-  container.appendChild(app.view);
+  gameCanvas.appendChild(app.view);
 }
 
 function draw(stage) {

@@ -1,17 +1,27 @@
 defmodule GolfWeb.GameLive do
   use GolfWeb, :live_view
+  alias Golf.Games
 
   def render(assigns) do
     ~H"""
-    <script src="https://pixijs.download/release/pixi.js"></script>
+    <script src="https://pixijs.download/release/pixi.js">
+    </script>
     <h2>Game <%= @game_id %></h2>
-    <div id="game-container" phx-update="ignore"></div>
+    <div id="game-canvas" phx-hook="GameCanvas" phx-update="ignore"></div>
     """
   end
 
   def mount(%{"game_id" => game_id}, assigns, socket) do
-    IO.inspect(game_id)
-    IO.inspect(assigns)
-    {:ok, assign(socket, :game_id, game_id)}
+    with {game_id, _} <- Integer.parse(game_id),
+         game when is_struct(game) <- Games.get_game(game_id) do
+      {:ok,
+       socket
+       |> assign(:page_title, "Game #{game_id}")
+       |> assign(:game_id, game_id)
+       |> push_event("gameLoaded", %{"game" => game})}
+    else
+      _ ->
+        {:ok, socket |> redirect(to: ~p"/") |> put_flash(:error, "Game #{game_id} not found.")}
+    end
   end
 end

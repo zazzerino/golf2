@@ -4,6 +4,7 @@ defmodule Golf.Games.Game do
 
   @statuses [:init, :flip_2, :take, :hold, :flip, :last_take, :last_hold, :last_flip, :over]
 
+  @derive {Jason.Encoder, only: [:id, :status, :turn, :deck, :table_cards]}
   schema "games" do
     has_many :players, Golf.Games.Player
 
