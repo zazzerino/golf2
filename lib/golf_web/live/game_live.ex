@@ -1,8 +1,8 @@
 defmodule GolfWeb.GameLive do
   use GolfWeb, :live_view
 
-  alias Golf.GamesDb
   alias GolfWeb.UserAuth
+  alias Golf.GamesDb
 
   @impl true
   def mount(%{"game_id" => game_id}, session, socket) do

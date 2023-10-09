@@ -21,15 +21,18 @@ import "phoenix_html";
 import {Socket} from "phoenix";
 import {LiveSocket} from "phoenix_live_view";
 import topbar from "../vendor/topbar";
-import {makeGameObjects} from "./game";
+import * as Game from "./game";
 
 let Hooks = {};
 
+// matches a path like "/games/12"
 const GAME_URL_REGEX = /\/games\/(\d+)/;
 
+// if we're on a game page, draw the game and setup the GameContainer hook
 if (location.pathname.match(GAME_URL_REGEX)) {
+  
+  let context;
   const gameContainer = document.querySelector("#game-container");
-  const {pixi, sprites} = makeGameObjects(gameContainer);
 
   Hooks.GameContainer = {
     mounted() {
@@ -37,10 +40,17 @@ if (location.pathname.match(GAME_URL_REGEX)) {
 
       this.handleEvent("game-loaded", data => {
         console.log("game loaded: ", data);
+
+        context = Game.makeGameContext(data.game);
+        const {game, pixi, sprites} = context;
+
+        Game.drawGame(game, pixi.stage, sprites);
+        gameContainer.appendChild(pixi.view);
       });
 
       this.handleEvent("game-started", data => {
         console.log("game started: ", data);
+        Game.onGameStart(game, pixi.stage, sprites);
       })
 
       this.handleEvent("player-joined", data => {
