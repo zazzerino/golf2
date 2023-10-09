@@ -6,6 +6,8 @@ defmodule Golf.Games.Game do
 
   @derive {Jason.Encoder, only: [:id, :status, :turn, :deck, :table_cards, :players]}
   schema "games" do
+    belongs_to :host, Golf.Users.User
+
     has_many :players, Golf.Games.Player
     has_many :events, Golf.Games.Event
 

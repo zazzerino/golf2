@@ -1,6 +1,6 @@
 defmodule GolfWeb.Router do
   use GolfWeb, :router
-  import GolfWeb.Plugs
+  import GolfWeb.UserAuth, only: [put_user_token: 2]
 
   pipeline :browser do
     plug :accepts, ["html"]

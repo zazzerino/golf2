@@ -1,0 +1,16 @@
+<script src="https://pixijs.download/release/pixi.js">
+</script>
+
+<h2>
+  Game <%= @game.id %>
+</h2>
+
+<div id="game-container" phx-hook="GameContainer" phx-update="ignore"></div>
+
+<.button :if={@can_start_game?} phx-click="start_game">
+  Start Game
+</.button>
+
+<.button :if={@can_join_game?} phx-click="join_game">
+  Join Game
+</.button>

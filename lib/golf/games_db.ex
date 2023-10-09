@@ -3,7 +3,7 @@ defmodule Golf.GamesDb do
 
   alias Golf.Repo
   alias Golf.Games
-  alias Golf.Games.{Game, Player}
+  alias Golf.Games.{Game, Player, JoinRequest}
 
   def get_game(game_id) do
     Repo.get(Game, game_id)
@@ -22,6 +22,21 @@ defmodule Golf.GamesDb do
   def create_game(host_user_id) do
     Games.create_game(host_user_id)
     |> Repo.insert()
+  end
+
+  def insert_join_request(%JoinRequest{} = request) do
+    Repo.insert(request)
+  end
+
+  def confirm_join_request(%Game{} = game, %JoinRequest{} = request) do
+    next_turn = length(game.players)
+    new_player = %Player{game_id: game.id, user_id: request.user_id, turn: next_turn}
+    request_changeset = JoinRequest.changeset(request, %{confirmed?: true})
+
+    Ecto.Multi.new()
+    |> Ecto.Multi.insert(:player, new_player)
+    |> Ecto.Multi.update(:join_request, request_changeset)
+    |> Repo.transaction()
   end
 
   def start_game(game) do
@@ -45,11 +60,9 @@ defmodule Golf.GamesDb do
   end
 
   defp update_player_changesets(multi, changesets) do
-    Enum.reduce(changesets, multi, &update_player_changeset/2)
-  end
-
-  defp update_player_changeset(cs, multi) do
-    Ecto.Multi.update(multi, {:player, cs.data.id}, cs)
+    Enum.reduce(changesets, multi, fn cs, multi ->
+      Ecto.Multi.update(multi, {:player, cs.data.id}, cs)
+    end)
   end
 
   # def game_exists?(game_id) do

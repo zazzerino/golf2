@@ -26,18 +26,25 @@ import {makeGame} from "./game";
 let Hooks = {};
 
 const GAME_URL_REGEX = /\/games\/(\d+)/;
-const onGamePage = location.pathname.match(GAME_URL_REGEX);
 
-if (onGamePage) {
+if (location.pathname.match(GAME_URL_REGEX)) {
   const gameContainer = document.querySelector("#game-container");
   makeGame(gameContainer);
 
-  Hooks.GameCanvas = {
+  Hooks.GameContainer = {
     mounted() {
-      console.log("mounted game canvas");
+      console.log("mounted game container");
 
-      window.addEventListener("phx:game-loaded", e => {
-        console.log("game loaded: ", e.detail);
+      this.handleEvent("game-loaded", data => {
+        console.log("game loaded: ", data);
+      });
+
+      this.handleEvent("game-started", data => {
+        console.log("game started: ", data);
+      })
+
+      this.handleEvent("player-joined", data => {
+        console.log("player joined: ", data);
       });
     }
   }

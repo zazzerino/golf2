@@ -8,7 +8,7 @@ defmodule GolfWeb.GameController do
     {:ok, game} = GamesDb.create_game(user.id)
 
     conn
-    |> put_flash(:info, "Game #{game.id} created.")
     |> redirect(to: ~p"/games/#{game.id}")
+    |> put_flash(:info, "Game #{game.id} created.")
   end
 end

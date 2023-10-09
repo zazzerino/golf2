@@ -9,7 +9,6 @@ defmodule Golf.Repo.Migrations.CreatePlayersTable do
       add :hand, {:array, :map}
       add :held_card, :string
       add :turn, :integer
-      add :host?, :boolean
 
       timestamps()
     end

@@ -32,8 +32,18 @@ defmodule Golf.Games do
 
   def create_game(host_user_id) do
     deck = new_deck(@num_decks) |> Enum.shuffle()
-    host_player = %Player{user_id: host_user_id, turn: 0, host?: true}
-    %Game{deck: deck, players: [host_player]}
+    host_player = %Player{user_id: host_user_id, turn: 0}
+    %Game{host_id: host_user_id, deck: deck, players: [host_player]}
+  end
+
+  def add_player(%Game{status: :init} = game, user_id) do
+    if Enum.any?(game.players, fn p -> p.user_id == user_id end) do
+      {:error, :already_playing}
+    else
+      player = %Player{game_id: game.id, user_id: user_id, turn: length(game.players)}
+      game = %Game{game | players: game.players ++ [player]}
+      {:ok, game, player}
+    end
   end
 
   def start_game(%Game{status: :init} = game) do

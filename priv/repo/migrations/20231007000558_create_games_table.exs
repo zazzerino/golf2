@@ -3,6 +3,8 @@ defmodule Golf.Repo.Migrations.CreateGamesTable do
 
   def change do
     create table("games") do
+      add :host_id, references("users")
+
       add :status, :string
       add :turn, :integer
       add :deck, {:array, :string}
