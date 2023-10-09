@@ -1,3 +1,5 @@
+import { PIXI } from "../vendor/pixi";
+
 const GAME_WIDTH = 600;
 const GAME_HEIGHT = 600;
 
@@ -23,10 +25,10 @@ export function makeGameContext(game) {
     deck: null,
     tableCards: null,
     heldCard: null,
-    hands: {bottom: null, left: null, top: null, right: null},
+    hands: { bottom: null, left: null, top: null, right: null },
   }
 
-  return {game, pixi, sprites}
+  return { game, pixi, sprites }
 }
 
 export function drawGame(game, stage, sprites) {
@@ -48,7 +50,7 @@ function drawDeck(game, stage, sprites) {
     ticker.add(delta => animateInitDeck(sprite, delta, ticker));
     ticker.start();
   }
-  
+
   stage.addChild(sprite);
   sprites.deck = sprite;
 

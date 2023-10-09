@@ -15,7 +15,7 @@ defmodule GolfWeb.UserAuth do
     put_user_token(conn, session_token, cookie_token)
   end
 
-  # there's a token in the session
+  # token in session
   defp put_user_token(conn, session_token, cookie_token) when is_binary(session_token) do
     case verify(session_token) do
       {:ok, token, _} ->
@@ -27,7 +27,7 @@ defmodule GolfWeb.UserAuth do
     end
   end
 
-  # there's a token in the cookies
+  # token in cookies
   defp put_user_token(conn, _, cookie_token) when is_binary(cookie_token) do
     case verify(cookie_token) do
       {:ok, token, _} ->
@@ -40,7 +40,7 @@ defmodule GolfWeb.UserAuth do
     end
   end
 
-  # otherwise, create a user+token and store token in session and cookies
+  # no token, let's create a user+token and store token in session and cookies
   defp put_user_token(conn, _, _) do
     {_, token} = create_user_and_token()
 

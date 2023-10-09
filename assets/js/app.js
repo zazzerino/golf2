@@ -18,8 +18,8 @@
 // Include phoenix_html to handle method=PUT/DELETE in forms and buttons.
 import "phoenix_html";
 // Establish Phoenix Socket and LiveView configuration.
-import {Socket} from "phoenix";
-import {LiveSocket} from "phoenix_live_view";
+import { Socket } from "phoenix";
+import { LiveSocket } from "phoenix_live_view";
 import topbar from "../vendor/topbar";
 import * as Game from "./game";
 
@@ -30,8 +30,8 @@ const GAME_URL_REGEX = /\/games\/(\d+)/;
 
 // if we're on a game page, draw the game and setup the GameContainer hook
 if (location.pathname.match(GAME_URL_REGEX)) {
-  
-  let context;
+
+  let ctx;
   const gameContainer = document.querySelector("#game-container");
 
   Hooks.GameContainer = {
@@ -40,17 +40,15 @@ if (location.pathname.match(GAME_URL_REGEX)) {
 
       this.handleEvent("game-loaded", data => {
         console.log("game loaded: ", data);
+        ctx = Game.makeGameContext(data.game);
 
-        context = Game.makeGameContext(data.game);
-        const {game, pixi, sprites} = context;
-
-        Game.drawGame(game, pixi.stage, sprites);
-        gameContainer.appendChild(pixi.view);
+        Game.drawGame(ctx.game, ctx.pixi.stage, ctx.sprites);
+        gameContainer.appendChild(ctx.pixi.view);
       });
 
       this.handleEvent("game-started", data => {
         console.log("game started: ", data);
-        Game.onGameStart(game, pixi.stage, sprites);
+        Game.onGameStart(ctx.game, ctx.pixi.stage, ctx.sprites);
       })
 
       this.handleEvent("player-joined", data => {
@@ -61,10 +59,10 @@ if (location.pathname.match(GAME_URL_REGEX)) {
 }
 
 let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
-let liveSocket = new LiveSocket("/live", Socket, {params: {_csrf_token: csrfToken}, hooks: Hooks});
+let liveSocket = new LiveSocket("/live", Socket, { params: { _csrf_token: csrfToken }, hooks: Hooks });
 
 // Show progress bar on live navigation and form submits
-topbar.config({barColors: {0: "#29d"}, shadowColor: "rgba(0, 0, 0, .3)"});
+topbar.config({ barColors: { 0: "#29d" }, shadowColor: "rgba(0, 0, 0, .3)" });
 window.addEventListener("phx:page-loading-start", _ => topbar.show(300));
 window.addEventListener("phx:page-loading-stop", _ => topbar.hide());
 
