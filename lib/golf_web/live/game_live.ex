@@ -10,7 +10,6 @@ defmodule GolfWeb.GameLive do
          {:ok, _, user_id} <- UserAuth.verify(token),
          {game_id, _} <- Integer.parse(game_id) do
       if connected?(socket) do
-        :ok = subscribe(topic(game_id))
         send(self(), {:load_game, game_id})
       end
 
@@ -20,8 +19,9 @@ defmodule GolfWeb.GameLive do
          user_id: user_id,
          page_title: "Game #{game_id}",
          game: nil,
-         can_start_game?: false,
-         can_join_game?: false
+         user_is_host?: nil,
+         can_start_game?: nil,
+         can_join_game?: nil
        )}
     else
       err ->
@@ -47,7 +47,8 @@ defmodule GolfWeb.GameLive do
 
   @impl true
   def handle_info({:load_game, game_id}, socket) do
-    with game when is_struct(game) <- GamesDb.get_game(game_id) do
+    with game when is_struct(game) <- GamesDb.get_game(game_id),
+        :ok = subscribe(topic(game_id)) do
       {:noreply,
        socket
        |> push_event("game-loaded", %{"game" => game})

@@ -1,27 +1,10 @@
-// If you want to use Phoenix channels, run `mix help phx.gen.channel`
-// to get started and then uncomment the line below.
-// import "./user_socket.js"
-
-// You can include dependencies in two ways.
-//
-// The simplest option is to put them in assets/vendor and
-// import them using relative paths:
-//
-//     import "../vendor/some-package.js"
-//
-// Alternatively, you can `npm install some-package --prefix assets` and import
-// them using a path starting with the package name:
-//
-//     import "some-package"
-//
-
 // Include phoenix_html to handle method=PUT/DELETE in forms and buttons.
 import "phoenix_html";
 // Establish Phoenix Socket and LiveView configuration.
 import { Socket } from "phoenix";
 import { LiveSocket } from "phoenix_live_view";
 import topbar from "../vendor/topbar";
-import * as Game from "./game";
+import { GameContext } from "./game";
 
 let Hooks = {};
 
@@ -30,9 +13,7 @@ const GAME_URL_REGEX = /\/games\/(\d+)/;
 
 // if we're on a game page, draw the game and setup the GameContainer hook
 if (location.pathname.match(GAME_URL_REGEX)) {
-
-  let ctx;
-  const gameContainer = document.querySelector("#game-container");
+  let GameCtx;
 
   Hooks.GameContainer = {
     mounted() {
@@ -40,16 +21,13 @@ if (location.pathname.match(GAME_URL_REGEX)) {
 
       this.handleEvent("game-loaded", data => {
         console.log("game loaded: ", data);
-        ctx = Game.makeGameContext(data.game);
-
-        Game.drawGame(ctx.game, ctx.pixi.stage, ctx.sprites);
-        gameContainer.appendChild(ctx.pixi.view);
+        GameCtx = new GameContext(data.game);
       });
 
       this.handleEvent("game-started", data => {
         console.log("game started: ", data);
-        Game.onGameStart(ctx.game, ctx.pixi.stage, ctx.sprites);
-      })
+        GameCtx.onGameStart(data.game);
+      });
 
       this.handleEvent("player-joined", data => {
         console.log("player joined: ", data);

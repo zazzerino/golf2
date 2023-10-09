@@ -13,49 +13,81 @@ const CARD_HEIGHT = CARD_SVG_HEIGHT * CARD_SCALE;
 const DECK_NAME = "2B";
 const DECK_Y = GAME_HEIGHT / 2;
 
-export function makeGameContext(game) {
-  const pixi = new PIXI.Application({
-    width: GAME_WIDTH,
-    height: GAME_HEIGHT,
-    backgroundColor: 0x2e8b57,
-    // antialias: true,
-  });
+export class GameContext {
+  constructor(game) {
+    this.game = game;
+    this.container = document.querySelector("#game-container");
 
-  const sprites = {
-    deck: null,
-    tableCards: null,
-    heldCard: null,
-    hands: { bottom: null, left: null, top: null, right: null },
+    this.sprites = {
+      deck: null,
+      tableCards: null,
+      heldCard: null,
+      hands: { bottom: null, left: null, top: null, right: null },
+    }
+
+    this.renderer = new PIXI.Renderer({
+      width: GAME_WIDTH,
+      height: GAME_HEIGHT,
+      backgroundColor: 0x2e8b57
+    });
+
+    this.container.appendChild(this.renderer.view);
+    this.stage = new PIXI.Container();
+    this.addSprites();
+
+    this.oldTime = performance.now();
+    requestAnimationFrame(() => this.animate());
   }
 
-  return { game, pixi, sprites }
-}
+  animate() {
+    const newTime = performance.now();
+    let deltaTime = newTime - this.oldTime;
+    this.oldTime = newTime;
 
-export function drawGame(game, stage, sprites) {
-  drawDeck(game, stage, sprites);
-}
+    if (deltaTime < 0) deltaTime = 0;
+    if (deltaTime > 1000) deltaTime = 1000;
 
-export function onGameStart(game, stage, sprites) {
+    const delta = deltaTime * 60 / 1000;
 
-}
+    // animate deck init
+    if (this.game.status === "init"
+      && !this.sprites.deck.isAnimInit
+      && !this.sprites.deck.doneAnimInit) {
+      this.sprites.deck.y = -CARD_HEIGHT;
+      this.sprites.deck.isAnimInit = true;
+    }
 
-function drawDeck(game, stage, sprites) {
-  const prevSprite = sprites.deck;
-  const sprite = makeCardSprite(DECK_NAME, deckX(game.status), DECK_Y);
+    if (this.sprites.deck.isAnimInit) {
+      this.animDeckInitStep(delta);
+    }
 
-  if (game.status === "init") {
-    sprite.y = -CARD_HEIGHT / 2;
-
-    const ticker = new PIXI.Ticker();
-    ticker.add(delta => animateInitDeck(sprite, delta, ticker));
-    ticker.start();
+    this.renderer.render(this.stage);
+    requestAnimationFrame(() => this.animate());
   }
 
-  stage.addChild(sprite);
-  sprites.deck = sprite;
+  onGameStart(game) {
+    this.game = game;
+    this.sprites.deck.x = deckX(this.game.status);
+  }
 
-  if (prevSprite) {
-    prevSprite.visible = false;
+  addSprites() {
+    this.addDeck();
+  }
+
+  addDeck() {
+    const sprite = makeCardSprite(DECK_NAME, deckX(this.game.status), DECK_Y);
+    this.stage.addChild(sprite);
+    this.sprites.deck = sprite;
+  }
+
+  animDeckInitStep(delta) {
+    if (this.sprites.deck.y < DECK_Y) {
+      this.sprites.deck.y += 6 * delta; 
+    } else {
+      this.sprites.deck.y = DECK_Y;
+      this.sprites.deck.isAnimInit = false;
+      this.sprites.deck.doneAnimInit = true;
+    }
   }
 }
 
@@ -63,15 +95,6 @@ function deckX(gameStatus) {
   return gameStatus == "init"
     ? GAME_WIDTH / 2
     : GAME_WIDTH / 2 - CARD_WIDTH / 2;
-}
-
-function animateInitDeck(sprite, delta, ticker) {
-  if (sprite.y < GAME_HEIGHT / 2) {
-    sprite.y += delta * 8;
-  } else {
-    sprite.y = DECK_Y;
-    ticker.destroy();
-  }
 }
 
 function makeCardSprite(cardName, x = 0, y = 0) {
