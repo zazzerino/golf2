@@ -21,7 +21,7 @@ import "phoenix_html";
 import {Socket} from "phoenix";
 import {LiveSocket} from "phoenix_live_view";
 import topbar from "../vendor/topbar";
-import {makeGame} from "./game";
+import {makeGameObjects} from "./game";
 
 let Hooks = {};
 
@@ -29,7 +29,7 @@ const GAME_URL_REGEX = /\/games\/(\d+)/;
 
 if (location.pathname.match(GAME_URL_REGEX)) {
   const gameContainer = document.querySelector("#game-container");
-  makeGame(gameContainer);
+  const {pixi, sprites} = makeGameObjects(gameContainer);
 
   Hooks.GameContainer = {
     mounted() {

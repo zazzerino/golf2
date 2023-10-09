@@ -11,21 +11,24 @@ defmodule GolfWeb.UserAuth do
   def put_user_token(conn, _) do
     session_token = get_session(conn, :user_token)
     cookie_token = get_user_cookie(conn)
-    handle_user_token(conn, session_token, cookie_token)
+
+    put_user_token(conn, session_token, cookie_token)
   end
 
-  defp handle_user_token(conn, session_token, cookie_token) when is_binary(session_token) do
+  # there's a token in the session
+  defp put_user_token(conn, session_token, cookie_token) when is_binary(session_token) do
     case verify(session_token) do
       {:ok, token, _} ->
         assign(conn, :user_token, token)
         |> put_resp_cookie(@user_cookie, token, @cookie_options)
 
       _ ->
-        handle_user_token(conn, nil, cookie_token)
+        put_user_token(conn, nil, cookie_token)
     end
   end
 
-  defp handle_user_token(conn, _, cookie_token) when is_binary(cookie_token) do
+  # there's a token in the cookies
+  defp put_user_token(conn, _, cookie_token) when is_binary(cookie_token) do
     case verify(cookie_token) do
       {:ok, token, _} ->
         conn
@@ -33,11 +36,12 @@ defmodule GolfWeb.UserAuth do
         |> put_session(:user_token, token)
 
       _ ->
-        handle_user_token(conn, nil, nil)
+        put_user_token(conn, nil, nil)
     end
   end
 
-  defp handle_user_token(conn, _, _) do
+  # otherwise, create a user+token and store token in session and cookies
+  defp put_user_token(conn, _, _) do
     {_, token} = create_user_and_token()
 
     conn
@@ -47,12 +51,8 @@ defmodule GolfWeb.UserAuth do
   end
 
   def verify(user_token) do
-    case Phoenix.Token.verify(GolfWeb.Endpoint, @salt, user_token) do
-      {:ok, user_id} ->
-        {:ok, user_token, user_id}
-
-      err ->
-        err
+    with {:ok, user_id} <- Phoenix.Token.verify(GolfWeb.Endpoint, @salt, user_token) do
+      {:ok, user_token, user_id}
     end
   end
 

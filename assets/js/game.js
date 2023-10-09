@@ -7,7 +7,7 @@ const CARD_SVG_HEIGHT = 336;
 const CARD_SCALE = 0.25;
 const DECK_NAME = "2B";
 
-export function makeGame(container) {
+export function makeGameObjects(container) {
   const sprites = {
     deck: null,
     tableCards: null,

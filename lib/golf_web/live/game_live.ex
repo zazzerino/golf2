@@ -6,30 +6,27 @@ defmodule GolfWeb.GameLive do
 
   @impl true
   def mount(%{"game_id" => game_id}, session, socket) do
-    with {:get_token, token} when is_binary(token) <- {:get_token, session["user_token"]},
+    with token when is_binary(token) <- session["user_token"],
          {:ok, _, user_id} <- UserAuth.verify(token),
-         {game_id, _} <- Integer.parse(game_id),
-         game when is_struct(game) <- GamesDb.get_game(game_id),
-         :ok <- subscribe(game_id) do
+         {game_id, _} <- Integer.parse(game_id) do
+      if connected?(socket) do
+        :ok = subscribe(topic(game_id))
+        send(self(), {:load_game, game_id})
+      end
+
       {:ok,
        socket
-       |> push_event("game-loaded", %{"game" => game})
-       |> assign(user_id: user_id, page_title: "Game #{game_id}")
-       |> assign(game_data(game, user_id))}
+       |> assign(
+         user_id: user_id,
+         page_title: "Game #{game_id}",
+         game: nil,
+         can_start_game?: false,
+         can_join_game?: false
+       )}
     else
-      _ ->
-        {:ok, socket |> redirect(to: ~p"/")}
+      err ->
+        {:ok, socket |> redirect(to: ~p"/") |> put_flash(:error, "#{err}")}
     end
-  end
-
-  defp game_data(game, user_id) do
-    game_is_init? = game.status == :init
-
-    [
-      game: game,
-      can_start_game?: game_is_init? and user_id == game.host_id,
-      can_join_game?: game_is_init? and not user_is_player?(user_id, game.players)
-    ]
   end
 
   @impl true
@@ -50,7 +47,12 @@ defmodule GolfWeb.GameLive do
 
   @impl true
   def handle_info({:load_game, game_id}, socket) do
-    {:noreply, socket}
+    with game when is_struct(game) <- GamesDb.get_game(game_id) do
+      {:noreply,
+       socket
+       |> push_event("game-loaded", %{"game" => game})
+       |> assign(game_data(game, socket.assigns.user_id))}
+    end
   end
 
   @impl true
@@ -73,12 +75,22 @@ defmodule GolfWeb.GameLive do
 
   defp topic(game_id), do: "game:#{game_id}"
 
-  defp subscribe(game_id) do
-    Phoenix.PubSub.subscribe(Golf.PubSub, topic(game_id))
+  defp subscribe(topic) do
+    Phoenix.PubSub.subscribe(Golf.PubSub, topic)
   end
 
   defp broadcast_from(game_id, msg) do
     Phoenix.PubSub.broadcast_from(Golf.PubSub, self(), topic(game_id), msg)
+  end
+
+  defp game_data(game, user_id) do
+    game_is_init? = game.status == :init
+
+    [
+      game: game,
+      can_start_game?: game_is_init? and user_id == game.host_id,
+      can_join_game?: game_is_init? and not user_is_player?(user_id, game.players)
+    ]
   end
 
   defp user_is_player?(user_id, players) do
