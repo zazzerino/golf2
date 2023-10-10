@@ -36,20 +36,14 @@ defmodule Golf.Games do
     %Game{host_id: host_user_id, deck: deck, players: [host_player]}
   end
 
-  def add_player(%Game{status: :init} = game, user_id) do
-    if Enum.any?(game.players, fn p -> p.user_id == user_id end) do
-      {:error, :already_playing}
-    else
-      player = %Player{game_id: game.id, user_id: user_id, turn: length(game.players)}
-      game = %Game{game | players: game.players ++ [player]}
-      {:ok, game, player}
-    end
+  def add_player(%Game{status: :init} = game, %Player{} = player) do
+    {:ok, %Game{game | players: game.players ++ [player]}}
   end
 
   def start_game(%Game{status: :init} = game) do
-    # deal hands
+    # deal hands to players
     num_cards_to_deal = @hand_size * length(game.players)
-    {cards_to_deal, deck} = Enum.split(game.deck, num_cards_to_deal)
+    {:ok, cards_to_deal, deck} = deal_from_deck(game.deck, num_cards_to_deal)
 
     hands =
       cards_to_deal

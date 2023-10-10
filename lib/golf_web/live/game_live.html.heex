@@ -11,3 +11,27 @@
 <.button :if={@can_join_game?} phx-click="join_game">
   Join Game
 </.button>
+
+<div :if={@game && @game.status == :init}>
+  <h3>Join Requests</h3>
+  <%= if Enum.empty?(@join_requests) do %>
+    <p>No pending join requests.</p>
+  <% else %>
+    <table>
+      <thead>
+        <tr>
+          <th>User Id</th>
+          <th>Username</th>
+        </tr>
+      </thead>
+      <tbody>
+        <%= for req <- @join_requests do %>
+          <tr>
+            <td><%= req.user_id %></td>
+            <td><%= req.username %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+</div>

@@ -1,4 +1,5 @@
 import { PIXI } from "../vendor/pixi";
+import * as TWEEN from "../vendor/tween.umd";
 
 const GAME_WIDTH = 600;
 const GAME_HEIGHT = 600;
@@ -13,17 +14,13 @@ const CARD_HEIGHT = CARD_SVG_HEIGHT * CARD_SCALE;
 const DECK_NAME = "2B";
 const DECK_Y = GAME_HEIGHT / 2;
 
-export class GameContext {
-  constructor(game) {
-    this.game = game;
-    this.container = document.querySelector("#game-container");
+const TABLE_CARD_X = GAME_WIDTH / 2 + CARD_WIDTH / 2 + 2;
+const TABLE_CARD_Y = GAME_HEIGHT / 2;
 
-    this.sprites = {
-      deck: null,
-      tableCards: null,
-      heldCard: null,
-      hands: { bottom: null, left: null, top: null, right: null },
-    }
+export class GameContext {
+  constructor(game, containerSelector) {
+    this.game = game;
+    this.stage = new PIXI.Container();
 
     this.renderer = new PIXI.Renderer({
       width: GAME_WIDTH,
@@ -31,63 +28,77 @@ export class GameContext {
       backgroundColor: 0x2e8b57
     });
 
-    this.container.appendChild(this.renderer.view);
-    this.stage = new PIXI.Container();
+    this.sprites = {
+      deck: null,
+      tableCards: [],
+      heldCard: null,
+      hands: { bottom: [], left: [], top: [], right: [] },
+    };
+
     this.addSprites();
 
-    this.oldTime = performance.now();
-    requestAnimationFrame(() => this.animate());
+    this.container = document.querySelector(containerSelector);
+    this.container.appendChild(this.renderer.view);
+
+    this.time = performance.now();
+    requestAnimationFrame(time => this.render(time));
   }
 
-  animate() {
-    const newTime = performance.now();
-    let deltaTime = newTime - this.oldTime;
-    this.oldTime = newTime;
+  render(time) {
+    requestAnimationFrame(time => this.render(time));
 
-    if (deltaTime < 0) deltaTime = 0;
-    if (deltaTime > 1000) deltaTime = 1000;
-
-    const delta = deltaTime * 60 / 1000;
-
-    // animate deck init
-    if (this.game.status === "init"
-      && !this.sprites.deck.isAnimInit
-      && !this.sprites.deck.doneAnimInit) {
-      this.sprites.deck.y = -CARD_HEIGHT;
-      this.sprites.deck.isAnimInit = true;
+    if (this.game.status === "init" && !this.sprites.deck.doneInit) {
+      this.animDeckInit();
     }
 
-    if (this.sprites.deck.isAnimInit) {
-      this.animDeckInitStep(delta);
-    }
-
+    TWEEN.update(time);
     this.renderer.render(this.stage);
-    requestAnimationFrame(() => this.animate());
   }
 
   onGameStart(game) {
     this.game = game;
-    this.sprites.deck.x = deckX(this.game.status);
+    this.animDeckStart();
+    this.addTableCards();
   }
 
   addSprites() {
     this.addDeck();
+    this.addTableCards();
   }
 
   addDeck() {
-    const sprite = makeCardSprite(DECK_NAME, deckX(this.game.status), DECK_Y);
-    this.stage.addChild(sprite);
-    this.sprites.deck = sprite;
+    this.sprites.deck = makeCardSprite(DECK_NAME, deckX(this.game.status), DECK_Y);
+    this.stage.addChild(this.sprites.deck);
   }
 
-  animDeckInitStep(delta) {
-    if (this.sprites.deck.y < DECK_Y) {
-      this.sprites.deck.y += 6 * delta; 
-    } else {
-      this.sprites.deck.y = DECK_Y;
-      this.sprites.deck.isAnimInit = false;
-      this.sprites.deck.doneAnimInit = true;
-    }
+  animDeckInit() {
+    this.sprites.deck.y = CARD_HEIGHT / 2;
+    this.sprites.deck.tweenInit = new TWEEN.Tween(this.sprites.deck);
+    this.sprites.deck.tweenInit.to({ y: DECK_Y }, 500);
+    this.sprites.deck.tweenInit.easing(TWEEN.Easing.Bounce.Out);
+    this.sprites.deck.tweenInit.onComplete(() => this.sprites.deck.doneInit = true);
+    this.sprites.deck.tweenInit.start();
+  }
+
+  animDeckStart() {
+    this.sprites.deck.tweenStart = new TWEEN.Tween(this.sprites.deck);
+    this.sprites.deck.tweenStart.to({ x: deckX(this.game.status) }, 500);
+    this.sprites.deck.tweenStart.easing(TWEEN.Easing.Quadratic.Out);
+    this.sprites.deck.tweenStart.start();
+  }
+
+  addTableCard(name) {
+    const sprite = makeCardSprite(name, TABLE_CARD_X, TABLE_CARD_Y);
+    this.sprites.tableCards.push(sprite)
+    this.stage.addChild(sprite);
+  }
+
+  addTableCards() {
+    const card0 = this.game.table_cards[0];
+    const card1 = this.game.table_cards[1];
+
+    if (card0) this.addTableCard(card0);
+    if (card1) this.addTableCard(card1);
   }
 }
 
@@ -103,6 +114,7 @@ function makeCardSprite(cardName, x = 0, y = 0) {
 
   sprite.scale.set(CARD_SCALE, CARD_SCALE);
   sprite.anchor.set(0.5);
+
   sprite.x = x;
   sprite.y = y;
   sprite.cardName = cardName;

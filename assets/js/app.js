@@ -10,6 +10,7 @@ let Hooks = {};
 
 // matches a path like "/games/12"
 const GAME_URL_REGEX = /\/games\/(\d+)/;
+const GAME_CONTAINER_SELECTOR = "#game-container";
 
 // if we're on a game page, draw the game and setup the GameContainer hook
 if (location.pathname.match(GAME_URL_REGEX)) {
@@ -21,7 +22,7 @@ if (location.pathname.match(GAME_URL_REGEX)) {
 
       this.handleEvent("game-loaded", data => {
         console.log("game loaded: ", data);
-        GameCtx = new GameContext(data.game);
+        GameCtx = new GameContext(data.game, GAME_CONTAINER_SELECTOR);
       });
 
       this.handleEvent("game-started", data => {
@@ -29,9 +30,9 @@ if (location.pathname.match(GAME_URL_REGEX)) {
         GameCtx.onGameStart(data.game);
       });
 
-      this.handleEvent("player-joined", data => {
-        console.log("player joined: ", data);
-      });
+      // this.handleEvent("player-joined", data => {
+      //   console.log("player joined: ", data);
+      // });
     }
   }
 }
@@ -52,4 +53,3 @@ liveSocket.connect();
 // >> liveSocket.enableLatencySim(1000)  // enabled for duration of browser session
 // >> liveSocket.disableLatencySim()
 // window.liveSocket = liveSocket;
-

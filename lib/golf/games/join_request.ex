@@ -8,6 +8,8 @@ defmodule Golf.Games.JoinRequest do
 
     field :confirmed?, :boolean, default: false
 
+    field :username, :string, virtual: true
+
     timestamps()
   end
 

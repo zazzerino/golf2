@@ -3,6 +3,7 @@ defmodule GolfWeb.GameLive do
 
   alias GolfWeb.UserAuth
   alias Golf.GamesDb
+  alias Golf.Games.JoinRequest
 
   @impl true
   def mount(%{"game_id" => game_id}, session, socket) do
@@ -21,7 +22,8 @@ defmodule GolfWeb.GameLive do
          game: nil,
          user_is_host?: nil,
          can_start_game?: nil,
-         can_join_game?: nil
+         can_join_game?: nil,
+         join_requests: []
        )}
     else
       err ->
@@ -42,17 +44,23 @@ defmodule GolfWeb.GameLive do
 
   @impl true
   def handle_event("join_game", _value, socket) do
+    game_id = socket.assigns.game.id
+    request = %JoinRequest{game_id: game_id, user_id: socket.assigns.user_id}
+    {:ok, request} = GamesDb.insert_join_request(request)
+    broadcast_from(game_id, {:requested_join, request})
     {:noreply, socket}
   end
 
   @impl true
   def handle_info({:load_game, game_id}, socket) do
     with game when is_struct(game) <- GamesDb.get_game(game_id),
-        :ok = subscribe(topic(game_id)) do
+         join_requests <- GamesDb.get_unconfirmed_join_requests(game_id),
+         :ok = subscribe(topic(game_id)) do
       {:noreply,
        socket
        |> push_event("game-loaded", %{"game" => game})
-       |> assign(game_data(game, socket.assigns.user_id))}
+       |> assign(game_data(game, socket.assigns.user_id))
+       |> assign(join_requests: join_requests)}
     end
   end
 
@@ -65,14 +73,20 @@ defmodule GolfWeb.GameLive do
   end
 
   @impl true
-  def handle_info({:player_joined, game, user_id}, socket) do
-    can_join_game? = socket.assigns.user_id != user_id and socket.assigns.can_join_game?
-
-    {:noreply,
-     socket
-     |> push_event("player-joined", %{"game" => game, "user_id" => user_id})
-     |> assign(game: game, can_join_game?: can_join_game?)}
+  def handle_info({:requested_join, request}, socket) do
+    IO.inspect(request, label: "REQUESTED")
+    {:noreply, assign(socket, join_requests: [request | socket.assigns.join_requests])}
   end
+
+  # @impl true
+  # def handle_info({:player_joined, game, user_id}, socket) do
+  #   can_join_game? = socket.assigns.user_id != user_id and socket.assigns.can_join_game?
+
+  #   {:noreply,
+  #    socket
+  #    |> push_event("player-joined", %{"game" => game, "user_id" => user_id})
+  #    |> assign(game: game, can_join_game?: can_join_game?)}
+  # end
 
   defp topic(game_id), do: "game:#{game_id}"
 
