@@ -9,7 +9,10 @@ defmodule Golf.Games do
   @hand_size 6
 
   def new_deck(1), do: @card_names
-  def new_deck(num_decks) when num_decks > 1, do: @card_names ++ new_deck(num_decks - 1)
+
+  def new_deck(num_decks) when num_decks > 1 do
+    @card_names ++ new_deck(num_decks - 1)
+  end
 
   def deal_from_deck([], _) do
     {:error, :empty_deck}

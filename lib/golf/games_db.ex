@@ -29,6 +29,10 @@ defmodule Golf.GamesDb do
     Repo.insert(request)
   end
 
+  def get_join_request(request_id) do
+    Repo.get(JoinRequest, request_id)
+  end
+
   def get_unconfirmed_join_requests(game_id) do
     unconfirmed_join_requests_query(game_id)
     |> Repo.all()
@@ -36,46 +40,36 @@ defmodule Golf.GamesDb do
 
   defp unconfirmed_join_requests_query(game_id) do
     from jr in JoinRequest,
-      where: [game_id: ^game_id],
+      where: [game_id: ^game_id, confirmed?: false],
       join: u in User,
       on: [id: jr.user_id],
       order_by: jr.inserted_at,
       select: %JoinRequest{jr | username: u.username}
   end
 
-  # def confirm_join_request(%Game{} = game, %JoinRequest{} = request) do
-  #   player = %Player{game_id: game.id, user_id: request.user_id, turn: length(game.players)}
-  #   game = Games.add_player(game, player)
+  def confirm_join_request(%Game{} = game, %JoinRequest{} = request) do
+    if Enum.any?(game.players, fn p -> p.user_id == request.user_id end) do
+      {:error, :already_playing}
+    else
+      player = %Player{
+        game_id: game.id,
+        user_id: request.user_id,
+        username: request.username,
+        turn: length(game.players)
+      }
 
-  #   request_changeset = JoinRequest.changeset(request, %{confirmed?: true})
+      {:ok, game} = Games.add_player(game, player)
+      request_changeset = JoinRequest.changeset(request, %{confirmed?: true})
 
-  #   {:ok, _ } =
-  #     Ecto.Multi.new()
-  #     |> Ecto.Multi.insert(:player, player)
-  #     |> Ecto.Multi.update(:join_request, request_changeset)
-  #     |> Repo.transaction()
+      {:ok, %{player: player}} =
+        Ecto.Multi.new()
+        |> Ecto.Multi.insert(:player, player)
+        |> Ecto.Multi.update(:join_request, request_changeset)
+        |> Repo.transaction()
 
-  #   {:ok, game, player}
-  # end
-
-  # def add_player(%Game{status: :init} = game, user_id) do
-  #   if Enum.any?(game.players, fn p -> p.user_id == user_id end) do
-  #     {:error, :already_playing}
-  #   else
-  #     player = %Player{game_id: game.id, user_id: user_id, turn: length(game.players)}
-  #     game = %Game{game | players: game.players ++ [player]}
-  #     {:ok, game, player}
-  #   end
-  # end
-
-  # def add_user_to_game(%Game{} = game, user_id) do
-  #   if Enum.any?(game.players, fn p -> p.user_id == user_id) do
-  #     {:error, :already_playing}
-  #   else
-  #     player = %Player{game_id: game.id, user_id: user_id, turn: length(game.players)}
-
-  #   end
-  # end
+      {:ok, game, player}
+    end
+  end
 
   def start_game(game) do
     started_game = Games.start_game(game)

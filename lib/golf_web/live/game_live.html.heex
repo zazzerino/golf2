@@ -1,4 +1,4 @@
-<h2 :if={@game}>
+<h2 :if={@game} class="text-2xl font-bold">
   Game <%= @game.id %>
 </h2>
 
@@ -8,30 +8,23 @@
   Start Game
 </.button>
 
-<.button :if={@can_join_game?} phx-click="join_game">
+<.button :if={@can_join_game?} phx-click="request_join">
   Join Game
 </.button>
 
-<div :if={@game && @game.status == :init}>
-  <h3>Join Requests</h3>
+<div :if={@game && @game.status == :init} class="mt-4">
+  <h4 class="text-lg font-bold">Join Requests</h4>
   <%= if Enum.empty?(@join_requests) do %>
-    <p>No pending join requests.</p>
+    <p class="text-sm">No pending join requests.</p>
   <% else %>
-    <table>
-      <thead>
-        <tr>
-          <th>User Id</th>
-          <th>Username</th>
-        </tr>
-      </thead>
-      <tbody>
-        <%= for req <- @join_requests do %>
-          <tr>
-            <td><%= req.user_id %></td>
-            <td><%= req.username %></td>
-          </tr>
-        <% end %>
-      </tbody>
-    </table>
+    <.table id="join-requests-table" rows={@join_requests}>
+      <:col :let={req} label="User Id"><%= req.user_id %></:col>
+      <:col :let={req} label="Username"><%= req.username %></:col>
+      <:action :let={req} :if={@user_is_host?}>
+        <.button phx-click="confirm_join" phx-value-request_id={req.id}>
+          Confirm
+        </.button>
+      </:action>
+    </.table>
   <% end %>
 </div>

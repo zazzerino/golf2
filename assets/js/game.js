@@ -28,6 +28,9 @@ export class GameContext {
       backgroundColor: 0x2e8b57
     });
 
+    this.container = document.querySelector(containerSelector);
+    this.container.appendChild(this.renderer.view);
+
     this.sprites = {
       deck: null,
       tableCards: [],
@@ -36,20 +39,13 @@ export class GameContext {
     };
 
     this.addSprites();
-
-    this.container = document.querySelector(containerSelector);
-    this.container.appendChild(this.renderer.view);
-
-    this.time = performance.now();
-    requestAnimationFrame(time => this.render(time));
+    requestAnimationFrame(time => this.drawLoop(time));
   }
 
-  render(time) {
-    requestAnimationFrame(time => this.render(time));
+  drawLoop(time) {
+    requestAnimationFrame(time => this.drawLoop(time));
 
-    if (this.game.status === "init" && !this.sprites.deck.doneInit) {
-      this.animDeckInit();
-    }
+    if (this.shouldAnimDeckInit()) this.animDeckInit();
 
     TWEEN.update(time);
     this.renderer.render(this.stage);
@@ -67,24 +63,36 @@ export class GameContext {
   }
 
   addDeck() {
-    this.sprites.deck = makeCardSprite(DECK_NAME, deckX(this.game.status), DECK_Y);
+    const x = deckX(this.game.status);
+    this.sprites.deck = makeCardSprite(DECK_NAME, x, DECK_Y);
     this.stage.addChild(this.sprites.deck);
   }
 
+  shouldAnimDeckInit() {
+    return this.game.status === "init"
+      && !this.sprites.deck.isAnimInit
+      && !this.sprites.deck.doneAnimInit;
+  }
+
   animDeckInit() {
-    this.sprites.deck.y = CARD_HEIGHT / 2;
-    this.sprites.deck.tweenInit = new TWEEN.Tween(this.sprites.deck);
-    this.sprites.deck.tweenInit.to({ y: DECK_Y }, 500);
-    this.sprites.deck.tweenInit.easing(TWEEN.Easing.Bounce.Out);
-    this.sprites.deck.tweenInit.onComplete(() => this.sprites.deck.doneInit = true);
-    this.sprites.deck.tweenInit.start();
+    this.sprites.deck.isAnimInit = true;
+    this.sprites.deck.y = -CARD_HEIGHT / 2;
+
+    this.sprites.deck.tweenInit = new TWEEN.Tween(this.sprites.deck)
+      .to({ y: DECK_Y }, 1250)
+      .easing(TWEEN.Easing.Quadratic.Out)
+      .onComplete(() => {
+        this.sprites.deck.isAnimInit = false;
+        this.sprites.deck.doneAnimInit = true;
+      })
+      .start();
   }
 
   animDeckStart() {
-    this.sprites.deck.tweenStart = new TWEEN.Tween(this.sprites.deck);
-    this.sprites.deck.tweenStart.to({ x: deckX(this.game.status) }, 500);
-    this.sprites.deck.tweenStart.easing(TWEEN.Easing.Quadratic.Out);
-    this.sprites.deck.tweenStart.start();
+    this.sprites.deck.tweenStart = new TWEEN.Tween(this.sprites.deck)
+      .to({ x: deckX(this.game.status) }, 500)
+      .easing(TWEEN.Easing.Quadratic.Out)
+      .start();
   }
 
   addTableCard(name) {

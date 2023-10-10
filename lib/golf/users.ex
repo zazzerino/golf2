@@ -17,14 +17,6 @@ defmodule Golf.Users do
     |> Repo.one()
   end
 
-  # def get_username(user_id) do
-  #   from(u in User,
-  #     where: [id: ^user_id],
-  #     select: u.username
-  #   )
-  #   |> Repo.one()
-  # end
-
   def create_user() do
     Repo.insert(%User{})
   end
@@ -32,6 +24,14 @@ defmodule Golf.Users do
   def insert_user_token(token) do
     Repo.insert(token)
   end
+
+  # def get_username(user_id) do
+  #   from(u in User,
+  #     where: [id: ^user_id],
+  #     select: u.username
+  #   )
+  #   |> Repo.one()
+  # end
 
   # def update_username(user_id, new_name) do
   #   from(u in User, where: [id: ^user_id])

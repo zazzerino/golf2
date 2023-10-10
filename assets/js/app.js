@@ -30,9 +30,9 @@ if (location.pathname.match(GAME_URL_REGEX)) {
         GameCtx.onGameStart(data.game);
       });
 
-      // this.handleEvent("player-joined", data => {
-      //   console.log("player joined: ", data);
-      // });
+      this.handleEvent("player-joined", data => {
+        console.log("player joined: ", data);
+      });
     }
   }
 }
