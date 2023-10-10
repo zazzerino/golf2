@@ -37,6 +37,7 @@ export class GameContext {
       heldCard: null,
       hands: { bottom: [], left: [], top: [], right: [] },
     };
+    window.sprites = this.sprites;
 
     this.addSprites();
     requestAnimationFrame(time => this.drawLoop(time));
@@ -45,7 +46,7 @@ export class GameContext {
   drawLoop(time) {
     requestAnimationFrame(time => this.drawLoop(time));
 
-    if (this.shouldAnimDeckInit()) this.animDeckInit();
+    this.updateDeck();
 
     TWEEN.update(time);
     this.renderer.render(this.stage);
@@ -54,12 +55,14 @@ export class GameContext {
   onGameStart(game) {
     this.game = game;
     this.animDeckStart();
-    this.addTableCards();
   }
 
   addSprites() {
     this.addDeck();
-    this.addTableCards();
+
+    if (this.game.status !== "init") {
+      this.addTableCards();
+    }
   }
 
   addDeck() {
@@ -68,10 +71,12 @@ export class GameContext {
     this.stage.addChild(this.sprites.deck);
   }
 
-  shouldAnimDeckInit() {
-    return this.game.status === "init"
+  updateDeck() {
+    if (this.game.status === "init"
       && !this.sprites.deck.isAnimInit
-      && !this.sprites.deck.doneAnimInit;
+      && !this.sprites.deck.doneAnimInit) {
+      this.animDeckInit();
+    }
   }
 
   animDeckInit() {
@@ -89,9 +94,15 @@ export class GameContext {
   }
 
   animDeckStart() {
+    const newX = deckX(this.game.status);
+
     this.sprites.deck.tweenStart = new TWEEN.Tween(this.sprites.deck)
-      .to({ x: deckX(this.game.status) }, 500)
+      .to({ x: newX}, 250)
       .easing(TWEEN.Easing.Quadratic.Out)
+      .onComplete(() => {
+        this.addTableCards();
+        this.animTableStart();
+      })
       .start();
   }
 
@@ -107,6 +118,16 @@ export class GameContext {
 
     if (card0) this.addTableCard(card0);
     if (card1) this.addTableCard(card1);
+  }
+
+  animTableStart() {
+    const sprite = this.sprites.tableCards[0];
+    sprite.x = this.sprites.deck.x;
+    sprite.y = this.sprites.deck.y;
+
+    sprite.tweenStart = new TWEEN.Tween(sprite)
+      .to({x: TABLE_CARD_X, y: TABLE_CARD_Y}, 500)
+      .start();
   }
 }
 

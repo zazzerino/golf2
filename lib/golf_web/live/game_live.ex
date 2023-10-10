@@ -38,9 +38,7 @@ defmodule GolfWeb.GameLive do
     broadcast(game.id, {:game_started, game})
 
     {:noreply,
-     socket
-     |> push_event("game-started", %{"game" => game})
-     |> assign(game: game, can_start_game?: false)}
+     assign(socket, game: game, can_start_game?: false)}
   end
 
   @impl true
