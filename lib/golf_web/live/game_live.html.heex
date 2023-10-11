@@ -13,7 +13,10 @@
 </.button>
 
 <div :if={@game && @game.status == :init} class="mt-4">
-  <h4 class="text-lg font-bold">Join Requests</h4>
+  <h4 class="text-lg font-bold">
+    Join Requests
+  </h4>
+
   <%= if Enum.empty?(@join_requests) do %>
     <p class="text-sm">No pending join requests.</p>
   <% else %>

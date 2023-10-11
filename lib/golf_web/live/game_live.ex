@@ -36,8 +36,8 @@ defmodule GolfWeb.GameLive do
   @impl true
   def handle_event("start_game", _value, socket) do
     {:ok, game} = GamesDb.start_game(socket.assigns.game)
-
     game = put_player_data(game, socket.assigns.user.id)
+
     broadcast(game.id, {:game_started, game})
     {:noreply, assign(socket, game: game, can_start_game?: false)}
   end
@@ -45,9 +45,7 @@ defmodule GolfWeb.GameLive do
   @impl true
   def handle_event("request_join", _value, socket) do
     game_id = socket.assigns.game.id
-    user = socket.assigns.user
-
-    request = JoinRequest.new(game_id, user)
+    request = JoinRequest.new(game_id, socket.assigns.user)
     {:ok, request} = GamesDb.insert_join_request(request)
 
     broadcast(game_id, {:requested_join, request})
@@ -61,7 +59,7 @@ defmodule GolfWeb.GameLive do
          req when is_struct(req) <- GamesDb.get_join_request(req_id),
          {:ok, game, player} <- GamesDb.confirm_join_request(socket.assigns.game, req) do
       game = put_player_data(game, socket.assigns.user.id)
-      broadcast(game.id, {:player_joined, game, player})
+      broadcast(game.id, {:player_joined, game, player.id})
     end
 
     {:noreply, socket}
@@ -82,10 +80,10 @@ defmodule GolfWeb.GameLive do
     {:noreply,
      socket
      |> push_event("game-loaded", %{"game" => game})
-     |> assign(game_data(game, socket.assigns.user.id))
+     |> assign(game_data(game, user_id))
      |> assign(
        join_requests: join_requests,
-       user_is_host?: game.host_id == socket.assigns.user.id
+       user_is_host?: game.host_id == user_id
      )}
   end
 
@@ -108,13 +106,13 @@ defmodule GolfWeb.GameLive do
   end
 
   @impl true
-  def handle_info({:player_joined, game, player}, socket) do
+  def handle_info({:player_joined, game, player_id}, socket) do
     join_requests = GamesDb.get_unconfirmed_join_requests(game.id)
 
     {:noreply,
      socket
      |> assign(game: game, join_requests: join_requests)
-     |> push_event("player-joined", %{"game" => game, "player" => player})}
+     |> push_event("player-joined", %{"game" => game, "playerId" => player_id})}
   end
 
   defp topic(game_id), do: "game:#{game_id}"
@@ -125,6 +123,10 @@ defmodule GolfWeb.GameLive do
 
   defp broadcast(game_id, msg) do
     Phoenix.PubSub.broadcast(Golf.PubSub, topic(game_id), msg)
+  end
+
+  defp user_is_player?(user_id, players) do
+    Enum.any?(players, fn p -> p.user_id == user_id end)
   end
 
   defp game_data(game, user_id) do
@@ -148,10 +150,6 @@ defmodule GolfWeb.GameLive do
       |> put_positions_and_scores(positions)
 
     %Game{game | players: players}
-  end
-
-  defp user_is_player?(user_id, players) do
-    Enum.any?(players, fn p -> p.user_id == user_id end)
   end
 
   defp hand_positions(num_players) do

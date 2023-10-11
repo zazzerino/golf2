@@ -18,11 +18,11 @@ if (location.pathname.match(GAME_URL_REGEX)) {
 
   Hooks.GameContainer = {
     mounted() {
-      console.log("mounted game container");
-
       this.handleEvent("game-loaded", data => {
         console.log("game loaded: ", data);
         GameCtx = new GameContext(data.game, GAME_CONTAINER_SELECTOR);
+
+        if (data.game.status === "init") GameCtx.tweenDeckFromTop();
       });
 
       this.handleEvent("game-started", data => {
@@ -32,6 +32,7 @@ if (location.pathname.match(GAME_URL_REGEX)) {
 
       this.handleEvent("player-joined", data => {
         console.log("player joined: ", data);
+        GameCtx.onPlayerJoin(data.game, data.playerId);
       });
     }
   }

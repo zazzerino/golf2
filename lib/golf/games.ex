@@ -85,7 +85,7 @@ defmodule Golf.Games do
   defp rank_or_nil(%{"face_up?" => true, "name" => <<rank, _>>}), do: rank
   defp rank_or_nil(_), do: nil
 
-  defp score_ranks(ranks, total \\ 0) do
+  defp score_ranks(ranks, total) do
     case ranks do
       # all match
       [a, a, a, a, a, a] when not is_nil(a) ->
@@ -137,6 +137,6 @@ defmodule Golf.Games do
   def score(hand) do
     hand
     |> Enum.map(&rank_or_nil/1)
-    |> score_ranks()
+    |> score_ranks(0)
   end
 end
