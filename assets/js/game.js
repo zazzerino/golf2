@@ -46,7 +46,7 @@ export class GameContext {
   drawLoop(time) {
     requestAnimationFrame(time => this.drawLoop(time));
 
-    this.updateDeck();
+    this.stepDeck();
 
     TWEEN.update(time);
     this.renderer.render(this.stage);
@@ -71,7 +71,7 @@ export class GameContext {
     this.stage.addChild(this.sprites.deck);
   }
 
-  updateDeck() {
+  stepDeck() {
     if (this.game.status === "init"
       && !this.sprites.deck.isAnimInit
       && !this.sprites.deck.doneAnimInit) {
@@ -97,7 +97,7 @@ export class GameContext {
     const newX = deckX(this.game.status);
 
     this.sprites.deck.tweenStart = new TWEEN.Tween(this.sprites.deck)
-      .to({ x: newX}, 250)
+      .to({ x: newX}, 200)
       .easing(TWEEN.Easing.Quadratic.Out)
       .onComplete(() => {
         this.addTableCards();
@@ -126,9 +126,14 @@ export class GameContext {
     sprite.y = this.sprites.deck.y;
 
     sprite.tweenStart = new TWEEN.Tween(sprite)
-      .to({x: TABLE_CARD_X, y: TABLE_CARD_Y}, 500)
+      .to({x: TABLE_CARD_X, y: TABLE_CARD_Y}, 800)
+      .easing(TWEEN.Easing.Quadratic.Out)
       .start();
   }
+
+  // addHand() {
+
+  // }
 }
 
 function deckX(gameStatus) {

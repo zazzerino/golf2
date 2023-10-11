@@ -3,6 +3,7 @@ defmodule GolfWeb.GameLive do
 
   alias GolfWeb.UserAuth
   alias Golf.GamesDb
+  alias Golf.Games
   alias Golf.Games.{Game, JoinRequest}
 
   @impl true
@@ -35,10 +36,10 @@ defmodule GolfWeb.GameLive do
   @impl true
   def handle_event("start_game", _value, socket) do
     {:ok, game} = GamesDb.start_game(socket.assigns.game)
-    broadcast(game.id, {:game_started, game})
 
-    {:noreply,
-     assign(socket, game: game, can_start_game?: false)}
+    game = put_player_data(game, socket.assigns.user.id)
+    broadcast(game.id, {:game_started, game})
+    {:noreply, assign(socket, game: game, can_start_game?: false)}
   end
 
   @impl true
@@ -59,6 +60,7 @@ defmodule GolfWeb.GameLive do
          {req_id, _} when is_integer(req_id) <- Integer.parse(req_id),
          req when is_struct(req) <- GamesDb.get_join_request(req_id),
          {:ok, game, player} <- GamesDb.confirm_join_request(socket.assigns.game, req) do
+      game = put_player_data(game, socket.assigns.user.id)
       broadcast(game.id, {:player_joined, game, player})
     end
 
@@ -67,13 +69,15 @@ defmodule GolfWeb.GameLive do
 
   @impl true
   def handle_info({:load_game, game_id}, socket) do
-    %Game{} = game = GamesDb.get_game(game_id)
-    :ok = subscribe(topic(game_id))
+    user_id = socket.assigns.user.id
+    game = GamesDb.get_game(game_id) |> put_player_data(user_id)
 
     join_requests =
       if game.status == :init do
         GamesDb.get_unconfirmed_join_requests(game_id)
       end
+
+    :ok = subscribe(topic(game_id))
 
     {:noreply,
      socket
@@ -125,6 +129,7 @@ defmodule GolfWeb.GameLive do
 
   defp game_data(game, user_id) do
     game_is_init? = game.status == :init
+    game = put_player_data(game, user_id)
 
     [
       game: game,
@@ -133,7 +138,50 @@ defmodule GolfWeb.GameLive do
     ]
   end
 
+  defp put_player_data(game, user_id) do
+    player_index = Enum.find_index(game.players, fn p -> p.user_id == user_id end)
+    positions = hand_positions(length(game.players))
+
+    players =
+      game.players
+      |> maybe_rotate(player_index)
+      |> put_positions_and_scores(positions)
+
+    %Game{game | players: players}
+  end
+
   defp user_is_player?(user_id, players) do
     Enum.any?(players, fn p -> p.user_id == user_id end)
+  end
+
+  defp hand_positions(num_players) do
+    case num_players do
+      1 -> ~w(bottom)
+      2 -> ~w(bottom top)
+      3 -> ~w(bottom left right)
+      4 -> ~w(bottom left top right)
+    end
+  end
+
+  defp put_positions_and_scores(players, positions) do
+    Enum.zip_with(players, positions, &put_pos_and_score/2)
+  end
+
+  defp put_pos_and_score(player, pos) do
+    player
+    |> Map.put(:position, pos)
+    |> Map.put(:score, Games.score(player.hand))
+  end
+
+  # don't do anything if n is nil or 0
+  defp maybe_rotate(list, n) when is_nil(n) or 0 == n, do: list
+
+  # otherwise rotate the list n elements
+  defp maybe_rotate(list, n) do
+    list
+    |> Stream.cycle()
+    |> Stream.drop(n)
+    |> Stream.take(length(list))
+    |> Enum.to_list()
   end
 end
