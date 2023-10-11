@@ -21,6 +21,7 @@ defmodule GolfWeb.GameLive do
        |> assign(
          user: user,
          page_title: "Game #{game_id}",
+         game_id: game_id,
          game: nil,
          user_is_host?: nil,
          can_start_game?: nil,
@@ -34,9 +35,76 @@ defmodule GolfWeb.GameLive do
   end
 
   @impl true
+  def handle_info({:load_game, game_id}, socket) do
+    user_id = socket.assigns.user.id
+
+    game =
+      GamesDb.get_game(game_id)
+      |> put_player_data(user_id)
+
+    user_is_host? = game.host_id == user_id
+    game_is_init? = game.status == :init
+
+    join_requests =
+      if game_is_init? do
+        GamesDb.get_unconfirmed_join_requests(game_id)
+      end
+
+    has_requested_join? =
+      join_requests && Enum.any?(join_requests, fn req -> req.user_id == user_id end)
+
+    can_start_game? = game_is_init? and user_is_host?
+
+    can_join_game? =
+      game_is_init? and not has_requested_join? and not user_is_player?(user_id, game.players)
+
+    :ok = subscribe(topic(game_id))
+
+    {:noreply,
+     socket
+     |> push_event("game-loaded", %{"game" => game})
+     |> assign(
+       game: game,
+       user_is_host?: user_is_host?,
+       can_start_game?: can_start_game?,
+       can_join_game?: can_join_game?,
+       join_requests: join_requests
+     )}
+  end
+
+  @impl true
+  def handle_info({:game_started, game}, socket) do
+    {:noreply,
+     socket
+     |> push_event("game-started", %{"game" => game})
+     |> assign(game: game, can_start_game?: false, can_join_game?: false)}
+  end
+
+  @impl true
+  def handle_info({:requested_join, request}, socket) do
+    user_made_request? = request.user_id == socket.assigns.user.id
+    can_join_game? = if user_made_request?, do: false, else: socket.assigns.can_join_game?
+    requests = GamesDb.get_unconfirmed_join_requests(socket.assigns.game.id)
+
+    {:noreply, assign(socket, join_requests: requests, can_join_game?: can_join_game?)}
+  end
+
+  @impl true
+  def handle_info({:player_joined, game, player_id}, socket) do
+    join_requests = GamesDb.get_unconfirmed_join_requests(game.id)
+
+    {:noreply,
+     socket
+     |> assign(game: game, join_requests: join_requests)
+     |> push_event("player-joined", %{"game" => game, "playerId" => player_id})}
+  end
+
+  @impl true
   def handle_event("start_game", _value, socket) do
+    user_id = socket.assigns.user.id
+
     {:ok, game} = GamesDb.start_game(socket.assigns.game)
-    game = put_player_data(game, socket.assigns.user.id)
+    game = game |> put_player_data(user_id)
 
     broadcast(game.id, {:game_started, game})
     {:noreply, assign(socket, game: game, can_start_game?: false)}
@@ -58,62 +126,12 @@ defmodule GolfWeb.GameLive do
          {req_id, _} when is_integer(req_id) <- Integer.parse(req_id),
          req when is_struct(req) <- GamesDb.get_join_request(req_id),
          {:ok, game, player} <- GamesDb.confirm_join_request(socket.assigns.game, req) do
-      game = put_player_data(game, socket.assigns.user.id)
+      user_id = socket.assigns.user.id
+      game = game |> put_player_data(user_id)
       broadcast(game.id, {:player_joined, game, player.id})
     end
 
     {:noreply, socket}
-  end
-
-  @impl true
-  def handle_info({:load_game, game_id}, socket) do
-    user_id = socket.assigns.user.id
-    game_data = GamesDb.get_game(game_id) |> game_data(user_id)
-    game = game_data[:game]
-
-    join_requests =
-      if game.status == :init do
-        GamesDb.get_unconfirmed_join_requests(game_id)
-      end
-
-    :ok = subscribe(topic(game_id))
-
-    {:noreply,
-     socket
-     |> push_event("game-loaded", %{"game" => game})
-     |> assign(game_data)
-     |> assign(
-       join_requests: join_requests,
-       user_is_host?: game.host_id == user_id
-     )}
-  end
-
-  @impl true
-  def handle_info({:game_started, game}, socket) do
-    {:noreply,
-     socket
-     |> push_event("game-started", %{"game" => game})
-     |> assign(game: game, can_start_game?: false)}
-  end
-
-  @impl true
-  def handle_info({:requested_join, request}, socket) do
-    requests = GamesDb.get_unconfirmed_join_requests(socket.assigns.game.id)
-
-    user_made_request? = socket.assigns.user.id == request.user_id
-    can_join_game? = if user_made_request?, do: false, else: socket.assigns.can_join_game?
-
-    {:noreply, assign(socket, join_requests: requests, can_join_game?: can_join_game?)}
-  end
-
-  @impl true
-  def handle_info({:player_joined, game, player_id}, socket) do
-    join_requests = GamesDb.get_unconfirmed_join_requests(game.id)
-
-    {:noreply,
-     socket
-     |> assign(game: game, join_requests: join_requests)
-     |> push_event("player-joined", %{"game" => game, "playerId" => player_id})}
   end
 
   defp topic(game_id), do: "game:#{game_id}"
@@ -130,28 +148,21 @@ defmodule GolfWeb.GameLive do
     Enum.any?(players, fn p -> p.user_id == user_id end)
   end
 
-  defp game_data(game, user_id) do
-    game_is_init? = game.status == :init
-    game = put_player_data(game, user_id)
-
-    [
-      game: game,
-      user_is_host?: game.host_id == user_id,
-      can_start_game?: game_is_init? and user_id == game.host_id,
-      can_join_game?: game_is_init? and not user_is_player?(user_id, game.players)
-    ]
-  end
-
   defp put_player_data(game, user_id) do
-    player_index = Enum.find_index(game.players, fn p -> p.user_id == user_id end)
     positions = hand_positions(length(game.players))
+
+    player_is_user? = fn p -> p.user_id == user_id end
+    player_index = Enum.find_index(game.players, player_is_user?)
+
+    player = player_index && Enum.at(game.players, player_index)
+    playable_cards = player && Games.playable_cards(game, player)
 
     players =
       game.players
       |> maybe_rotate(player_index)
       |> put_positions_and_scores(positions)
 
-    %Game{game | players: players}
+    %Game{game | players: players, playable_cards: playable_cards}
   end
 
   defp hand_positions(num_players) do
@@ -164,13 +175,11 @@ defmodule GolfWeb.GameLive do
   end
 
   defp put_positions_and_scores(players, positions) do
-    Enum.zip_with(players, positions, &put_pos_and_score/2)
-  end
-
-  defp put_pos_and_score(player, pos) do
-    player
-    |> Map.put(:position, pos)
-    |> Map.put(:score, Games.score(player.hand))
+    Enum.zip_with(players, positions, fn player, pos ->
+      player
+      |> Map.put(:position, pos)
+      |> Map.put(:score, Games.score(player.hand))
+    end)
   end
 
   # don't do anything if n is nil or 0

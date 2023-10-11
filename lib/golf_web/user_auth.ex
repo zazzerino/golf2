@@ -17,7 +17,6 @@ defmodule GolfWeb.UserAuth do
   def put_user_token(conn, _) do
     session_token = get_session(conn, :user_token)
     cookie_token = conn |> Map.get(:cookies) |> Map.get(@user_cookie)
-
     put_user_token(conn, session_token, cookie_token)
   end
 

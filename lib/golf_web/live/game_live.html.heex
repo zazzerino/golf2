@@ -1,16 +1,18 @@
-<h2 :if={@game} class="text-2xl font-bold">
-  Game <%= @game.id %>
+<h2 class="text-2xl font-bold">
+  Game <%= @game_id %>
 </h2>
 
 <div id="game-container" class="mb-4" phx-hook="GameContainer" phx-update="ignore"></div>
 
-<.button :if={@can_start_game?} phx-click="start_game">
-  Start Game
-</.button>
+<div>
+  <.button :if={@can_start_game?} phx-click="start_game">
+    Start Game
+  </.button>
 
-<.button :if={@can_join_game?} phx-click="request_join">
-  Join Game
-</.button>
+  <.button :if={@can_join_game?} phx-click="request_join">
+    Join Game
+  </.button>
+</div>
 
 <div :if={@game && @game.status == :init} class="mt-4">
   <h4 class="text-lg font-bold">

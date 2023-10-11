@@ -8,6 +8,9 @@ defmodule Golf.Games do
   @num_decks 2
   @hand_size 6
 
+  defguard is_players_turn(game, player)
+           when rem(game.turn, length(game.players)) == player.turn
+
   def create_game(host_user_id) do
     deck = new_deck(@num_decks) |> Enum.shuffle()
     host_player = %Player{user_id: host_user_id, turn: 0}
@@ -39,32 +42,75 @@ defmodule Golf.Games do
     %Game{game | status: :flip_2, deck: deck, table_cards: table_cards, players: players}
   end
 
-  def new_deck(1), do: @card_names
+  def score(hand) do
+    hand
+    |> Enum.map(&rank_or_nil/1)
+    |> score_ranks(0)
+  end
 
-  def new_deck(num_decks) when num_decks > 1 do
+  def playable_cards(%Game{status: :flip2}, %Player{} = player) do
+    if num_cards_face_up(player.hand) < 2 do
+      face_down_cards(player.hand)
+    else
+      []
+    end
+  end
+
+  def playable_cards(%Game{} = game, %Player{} = player) when is_players_turn(game, player) do
+    case game.status do
+      s when s in [:flip_2, :flip] ->
+        face_down_cards(player.hand)
+
+      s when s in [:take, :last_take] ->
+        [:deck, :table]
+
+      s when s in [:hold, :last_hold] ->
+        [:held, :hand_0, :hand_1, :hand_2, :hand_3, :hand_4, :hand_5]
+
+      _ ->
+        []
+    end
+  end
+
+  def playable_cards(%Game{}, %Player{}), do: []
+
+  defp new_deck(1), do: @card_names
+
+  defp new_deck(num_decks) when num_decks > 1 do
     @card_names ++ new_deck(num_decks - 1)
   end
 
-  def deal_from_deck([], _) do
+  defp deal_from_deck([], _) do
     {:error, :empty_deck}
   end
 
-  def deal_from_deck(deck, n) when length(deck) < n do
+  defp deal_from_deck(deck, n) when length(deck) < n do
     {:error, :not_enough_cards}
   end
 
-  def deal_from_deck(deck, n) do
+  defp deal_from_deck(deck, n) do
     {dealt_cards, deck} = Enum.split(deck, n)
     {:ok, dealt_cards, deck}
   end
 
-  def deal_from_deck(deck) do
+  defp deal_from_deck(deck) do
     with {:ok, [card], deck} <- deal_from_deck(deck, 1) do
       {:ok, card, deck}
     end
   end
 
-  def rank_value(rank) when is_integer(rank) do
+  defp num_cards_face_up(hand) do
+    Enum.count(hand, fn card -> card["face_up?"] end)
+  end
+
+  defp face_down_cards(hand) do
+    hand
+    |> Enum.with_index()
+    |> Enum.reject(fn {card, _} -> card["face_up?"] end)
+    |> Enum.map(fn {_, index} -> String.to_existing_atom("hand_#{index}") end)
+  end
+
+  defp rank_value(rank) when is_integer(rank) do
     case rank do
       ?K -> 0
       ?A -> 1
@@ -80,7 +126,7 @@ defmodule Golf.Games do
     end
   end
 
-  def rank_value(<<rank, _>>), do: rank_value(rank)
+  defp rank_value(<<rank, _>>), do: rank_value(rank)
 
   defp rank_or_nil(%{"face_up?" => true, "name" => <<rank, _>>}), do: rank
   defp rank_or_nil(_), do: nil
@@ -132,11 +178,5 @@ defmodule Golf.Games do
         |> Enum.reduce(0, fn name, acc -> rank_value(name) + acc end)
         |> Kernel.+(total)
     end
-  end
-
-  def score(hand) do
-    hand
-    |> Enum.map(&rank_or_nil/1)
-    |> score_ranks(0)
   end
 end

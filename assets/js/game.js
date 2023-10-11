@@ -108,7 +108,6 @@ export class GameContext {
   addTableCard(name) {
     const sprite = makeCardSprite(name, TABLE_CARD_X, TABLE_CARD_Y);
     sprite.place = "table";
-
     this.sprites.tableCards.push(sprite);
     this.stage.addChild(sprite);
   }
@@ -117,7 +116,12 @@ export class GameContext {
 
   addHand(player) {
     const container = new PIXI.Container();
-
+    const coord = handCoord(player.position);
+    
+    container.x = coord.x;
+    container.y = coord.y;
+    container.angle = coord.angle;
+    
     container.pivot.x = container.width / 2;
     container.pivot.y = container.height / 2;
 
@@ -133,14 +137,14 @@ export class GameContext {
       sprite.x = coord.x;
       sprite.y = coord.y;
 
-      makeCardPlayable(sprite, this.onHandClick);
+      const isPlayable = this.game.playable_cards.includes(`hand_${i}`);
+
+      if (isPlayable) {
+        makeCardPlayable(sprite, this.onHandClick);
+      }
+
       container.addChild(sprite);
     }
-
-    const coord = handCoord(player.position);
-    container.x = coord.x;
-    container.y = coord.y;
-    container.angle = coord.angle;
 
     this.sprites.hands[player.position] = container;
     this.stage.addChild(container);
@@ -176,9 +180,9 @@ export class GameContext {
       .start();
   }
 
-  tweenHandDeal(hand) {
-    for (const card of hand.children) {
-      tweenFrom(card, 0, 0, 1000)
+  tweenHandDeal(handContainer) {
+    for (const sprite of handContainer.children) {
+      tweenFrom(sprite, 0, 0, 1000)
         .delay(randRange(100, 600))
         .start();
     }
@@ -204,7 +208,7 @@ function makeCardSprite(cardName, x = 0, y = 0) {
 function makeCardPlayable(sprite, callback) {
   sprite.eventMode = "static";
   sprite.cursor = "pointer";
-  sprite.filters = [new OutlineFilter(3, 0xff00ff)];
+  sprite.filters = [new OutlineFilter(2, 0xff00ff)];
   sprite.on("pointerdown", event => callback(event.currentTarget))
 }
 
