@@ -68,7 +68,8 @@ defmodule GolfWeb.GameLive do
   @impl true
   def handle_info({:load_game, game_id}, socket) do
     user_id = socket.assigns.user.id
-    game = GamesDb.get_game(game_id) |> put_player_data(user_id)
+    game_data = GamesDb.get_game(game_id) |> game_data(user_id)
+    game = game_data[:game]
 
     join_requests =
       if game.status == :init do
@@ -80,7 +81,7 @@ defmodule GolfWeb.GameLive do
     {:noreply,
      socket
      |> push_event("game-loaded", %{"game" => game})
-     |> assign(game_data(game, user_id))
+     |> assign(game_data)
      |> assign(
        join_requests: join_requests,
        user_is_host?: game.host_id == user_id
@@ -135,6 +136,7 @@ defmodule GolfWeb.GameLive do
 
     [
       game: game,
+      user_is_host?: game.host_id == user_id,
       can_start_game?: game_is_init? and user_id == game.host_id,
       can_join_game?: game_is_init? and not user_is_player?(user_id, game.players)
     ]

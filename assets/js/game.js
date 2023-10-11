@@ -64,6 +64,11 @@ export class GameContext {
     this.game = game;
     this.tweenDeckStart();
     this.addHands();
+    
+    for (const player of this.game.players) {
+      const container = this.sprites.hands[player.position];
+      this.tweenHandDeal(container);
+    }
   }
 
   onPlayerJoin(game, playerId) {
@@ -90,7 +95,7 @@ export class GameContext {
 
   addTableCard(name) {
     const sprite = makeCardSprite(name, TABLE_CARD_X, TABLE_CARD_Y);
-    this.sprites.tableCards.push(sprite)
+    this.sprites.tableCards.push(sprite);
     this.stage.addChild(sprite);
   }
 
@@ -109,6 +114,7 @@ export class GameContext {
     container.pivot.y = container.height / 2;
 
     for (let i = 0; i < player.hand.length; i++) {
+    // for (let i = player.hand.length - 1; i >= 0; i--) {
       const card = player.hand[i];
       const name = card["face_up?"] ? card.name : DOWN_CARD;
 
@@ -146,17 +152,25 @@ export class GameContext {
       .easing(TWEEN.Easing.Quadratic.Out)
       .onComplete(() => {
         this.addTableCards();
-        this.tweenTableStart();
+        this.tweenTableDeal();
       })
       .start();
   }
 
-  tweenTableStart() {
+  tweenTableDeal() {
     const sprite = this.sprites.tableCards[0];
     const deck = this.sprites.deck;
 
     tweenFrom(sprite, deck.x, deck.y, 600)
       .start();
+  }
+
+  tweenHandDeal(hand) {
+    for (const card of hand.children) {
+      tweenFrom(card, 0, 0, 1000)
+        .delay(randRange(100, 600))
+        .start();
+    }
   }
 }
 
@@ -272,3 +286,6 @@ function handCardCoord(handIndex) {
   return { x, y };
 }
 
+function randRange(min, max) {
+  return Math.floor(Math.random() * (max - min + 1) + min);
+}

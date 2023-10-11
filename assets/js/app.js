@@ -22,7 +22,9 @@ if (location.pathname.match(GAME_URL_REGEX)) {
         console.log("game loaded: ", data);
         GameCtx = new GameContext(data.game, GAME_CONTAINER_SELECTOR);
 
-        if (data.game.status === "init") GameCtx.tweenDeckFromTop();
+        if (data.game.status === "init") {
+          GameCtx.tweenDeckFromTop();
+        }
       });
 
       this.handleEvent("game-started", data => {
