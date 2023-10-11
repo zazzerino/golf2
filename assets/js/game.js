@@ -20,8 +20,9 @@ const TABLE_CARD_X = GAME_WIDTH / 2 + CARD_WIDTH / 2 + 2;
 const TABLE_CARD_Y = GAME_HEIGHT / 2;
 
 export class GameContext {
-  constructor(game, containerSelector) {
+  constructor(game, containerSelector, pushEvent) {
     this.game = game;
+    this.pushEvent = pushEvent;
     this.stage = new PIXI.Container();
 
     this.renderer = new PIXI.Renderer({
@@ -82,6 +83,7 @@ export class GameContext {
 
   onHandClick(sprite) {
     console.log("hand clicked", sprite.handIndex);
+    // const gameEvent = {game_id: this.game.id, }
   }
 
   // deck

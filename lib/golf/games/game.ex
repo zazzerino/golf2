@@ -11,7 +11,7 @@ defmodule Golf.Games.Game do
     belongs_to :host, Golf.Users.User
 
     has_many :players, Golf.Games.Player
-    has_many :events, Golf.Games.Event
+    has_many :events, Golf.Games.GameEvent
 
     field :status, Ecto.Enum, values: @statuses, default: :init
     field :turn, :integer, default: 0

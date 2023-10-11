@@ -20,7 +20,7 @@ if (location.pathname.match(GAME_URL_REGEX)) {
     mounted() {
       this.handleEvent("game-loaded", data => {
         console.log("game loaded: ", data);
-        GameCtx = new GameContext(data.game, GAME_CONTAINER_SELECTOR);
+        GameCtx = new GameContext(data.game, GAME_CONTAINER_SELECTOR, this.pushEvent);
 
         if (data.game.status === "init") {
           GameCtx.tweenDeckFromTop();

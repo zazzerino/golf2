@@ -38,9 +38,7 @@ defmodule GolfWeb.GameLive do
   def handle_info({:load_game, game_id}, socket) do
     user_id = socket.assigns.user.id
 
-    game =
-      GamesDb.get_game(game_id)
-      |> put_player_data(user_id)
+    game = GamesDb.get_game(game_id) |> put_player_data(user_id)
 
     user_is_host? = game.host_id == user_id
     game_is_init? = game.status == :init

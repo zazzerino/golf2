@@ -1,5 +1,5 @@
 defmodule Golf.Games do
-  alias Golf.Games.{Game, Player}
+  alias Golf.Games.{Game, Player, GameEvent}
 
   @card_names for rank <- ~w(A 2 3 4 5 6 7 8 9 T J Q K),
                   suit <- ~w(C D H S),
@@ -14,7 +14,7 @@ defmodule Golf.Games do
   def create_game(host_user_id) do
     deck = new_deck(@num_decks) |> Enum.shuffle()
     host_player = %Player{user_id: host_user_id, turn: 0}
-    %Game{host_id: host_user_id, deck: deck, players: [host_player]}
+    %Game{host_id: host_user_id, deck: deck, players: [host_player], events: []}
   end
 
   def add_player(%Game{status: :init} = game, %Player{} = player) do
@@ -40,6 +40,30 @@ defmodule Golf.Games do
     table_cards = [card | game.table_cards]
 
     %Game{game | status: :flip_2, deck: deck, table_cards: table_cards, players: players}
+  end
+
+  def handle_event(%Game{status: :flip_2} = game, %GameEvent{action: :flip} = event) do
+    player = get_player(game, event.player_id)
+
+    if num_cards_face_up(player.hand) < 2 do
+      hand = flip_card(player.hand, event.hand_index)
+    end
+  end
+
+  defp get_player(game, player_id) do
+    Enum.find(game.players, fn p -> p.id == player_id end)
+  end
+
+  defp flip_card(hand, index) do
+    List.update_at(hand, index, fn card -> Map.put(card, "face_up?", true) end)
+  end
+
+  defp flip_all(hand) do
+    Enum.map(hand, fn card -> Map.put(card, "face_up?", true) end)
+  end
+
+  def swap_card(hand, card_name, index) do
+    old_card = Enum.at(hand, index, %{"name" => card_name, "face_up?" => true})
   end
 
   def score(hand) do
@@ -72,7 +96,7 @@ defmodule Golf.Games do
     end
   end
 
-  def playable_cards(%Game{}, %Player{}), do: []
+  def playable_cards(%Game{}, _), do: []
 
   defp new_deck(1), do: @card_names
 
