@@ -1,5 +1,6 @@
-import { PIXI } from "../vendor/pixi";
-import * as TWEEN from "../vendor/tween.umd";
+import * as PIXI from "pixi.js";
+import * as TWEEN from "@tweenjs/tween.js";
+import { OutlineFilter } from "@pixi/filter-outline";
 
 const GAME_WIDTH = 600;
 const GAME_HEIGHT = 600;
@@ -54,20 +55,22 @@ export class GameContext {
 
     if (this.game.status !== "init") {
       this.addTableCards();
-      this.addHands();
+
+      for (const player of this.game.players) {
+        this.addHand(player);
+      }
     }
   }
 
-  // events
+  // server events
 
   onGameStart(game) {
     this.game = game;
     this.tweenDeckStart();
-    this.addHands();
     
     for (const player of this.game.players) {
-      const container = this.sprites.hands[player.position];
-      this.tweenHandDeal(container);
+      const hand = this.addHand(player);
+      this.tweenHandDeal(hand);
     }
   }
 
@@ -75,12 +78,21 @@ export class GameContext {
     this.game = game;
   }
 
+  // client events
+
+  onHandClick(sprite) {
+    console.log("hand clicked", sprite.handIndex);
+  }
+
   // deck
 
   addDeck() {
     const x = deckX(this.game.status);
-    this.sprites.deck = makeCardSprite(DOWN_CARD, x, DECK_Y);
-    this.stage.addChild(this.sprites.deck);
+    const sprite = makeCardSprite(DOWN_CARD, x, DECK_Y);
+    sprite.place = "deck";
+
+    this.sprites.deck = sprite;
+    this.stage.addChild(sprite);
   }
 
   // table cards
@@ -95,17 +107,13 @@ export class GameContext {
 
   addTableCard(name) {
     const sprite = makeCardSprite(name, TABLE_CARD_X, TABLE_CARD_Y);
+    sprite.place = "table";
+
     this.sprites.tableCards.push(sprite);
     this.stage.addChild(sprite);
   }
 
   // player hands
-
-  addHands() {
-    for (const player of this.game.players) {
-      this.addHand(player);
-    }
-  }
 
   addHand(player) {
     const container = new PIXI.Container();
@@ -114,17 +122,18 @@ export class GameContext {
     container.pivot.y = container.height / 2;
 
     for (let i = 0; i < player.hand.length; i++) {
-    // for (let i = player.hand.length - 1; i >= 0; i--) {
       const card = player.hand[i];
       const name = card["face_up?"] ? card.name : DOWN_CARD;
 
       const sprite = makeCardSprite(name);
+      sprite.place = "hand";
       sprite.handIndex = i;
 
       const coord = handCardCoord(i);
       sprite.x = coord.x;
       sprite.y = coord.y;
 
+      makeCardPlayable(sprite, this.onHandClick);
       container.addChild(sprite);
     }
 
@@ -135,6 +144,8 @@ export class GameContext {
 
     this.sprites.hands[player.position] = container;
     this.stage.addChild(container);
+
+    return container;
   }
 
   // tweens
@@ -188,6 +199,13 @@ function makeCardSprite(cardName, x = 0, y = 0) {
   sprite.cardName = cardName;
 
   return sprite;
+}
+
+function makeCardPlayable(sprite, callback) {
+  sprite.eventMode = "static";
+  sprite.cursor = "pointer";
+  sprite.filters = [new OutlineFilter(3, 0xff00ff)];
+  sprite.on("pointerdown", event => callback(event.currentTarget))
 }
 
 function tweenFromY(sprite, fromY, duration, easingFn = TWEEN.Easing.Quadratic.Out) {

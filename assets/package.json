@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "@pixi/filter-outline": "^5.2.0",
+    "@tweenjs/tween.js": "^21.0.0",
+    "pixi.js": "^7.3.1"
+  }
+}
