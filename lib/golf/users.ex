@@ -25,6 +25,11 @@ defmodule Golf.Users do
     Repo.insert(token)
   end
 
+  def user_exists?(token) when is_binary(token) do
+    from(ut in UserToken, where: [token: ^token])
+    |> Repo.exists?()
+  end
+
   # def get_username(user_id) do
   #   from(u in User,
   #     where: [id: ^user_id],
