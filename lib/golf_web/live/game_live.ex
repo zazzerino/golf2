@@ -60,7 +60,7 @@ defmodule GolfWeb.GameLive do
 
     {:noreply,
      socket
-     |> push_event("game-loaded", %{"game" => game})
+     |> push_event("game_loaded", %{"game" => game})
      |> assign(
        game: game,
        user_is_host?: user_is_host?,
@@ -74,7 +74,7 @@ defmodule GolfWeb.GameLive do
   def handle_info({:game_started, game}, socket) do
     {:noreply,
      socket
-     |> push_event("game-started", %{"game" => game})
+     |> push_event("game_started", %{"game" => game})
      |> assign(game: game, can_start_game?: false, can_join_game?: false)}
   end
 
@@ -93,8 +93,8 @@ defmodule GolfWeb.GameLive do
 
     {:noreply,
      socket
-     |> assign(game: game, join_requests: join_requests)
-     |> push_event("player-joined", %{"game" => game, "playerId" => player_id})}
+     |> push_event("player_joined", %{"game" => game, "player_id" => player_id})
+     |> assign(game: game, join_requests: join_requests)}
   end
 
   @impl true
@@ -103,8 +103,8 @@ defmodule GolfWeb.GameLive do
 
     {:noreply,
      socket
-     |> assign(game: game)
-     |> push_event("game_event", %{"game" => game, "event" => event})}
+     |> push_event("game_event", %{"game" => game, "event" => event})
+     |> assign(game: game)}
   end
 
   @impl true
@@ -144,8 +144,8 @@ defmodule GolfWeb.GameLive do
 
   @impl true
   def handle_event(
-        "hand_card_clicked",
-        %{"handIndex" => index, "playerId" => player_id} = value,
+        "hand_click",
+        %{"player_id" => player_id, "hand_index" => hand_index},
         socket
       ) do
     user_id = socket.assigns.user.id
@@ -153,9 +153,9 @@ defmodule GolfWeb.GameLive do
 
     with {player, _} = Games.get_player(game, player_id),
          true <- player.user_id == user_id,
-         card <- String.to_existing_atom("hand_#{index}"),
+         card <- String.to_existing_atom("hand_#{hand_index}"),
          true <- Enum.member?(game.playable_cards, card),
-         event <- GameEvent.new(game.id, player.id, :flip, index),
+         event <- GameEvent.new(game.id, player.id, :flip, hand_index),
          {:ok, game, event} <- GamesDb.handle_event(game, event) do
       game = put_user_data(game, user_id)
       broadcast(game.id, {:game_event, game, event})
@@ -182,11 +182,13 @@ defmodule GolfWeb.GameLive do
   defp put_user_data(game, user_id) do
     positions = hand_positions(length(game.players))
 
-    player_is_user? = fn p -> p.user_id == user_id end
-    player_index = Enum.find_index(game.players, player_is_user?)
+    player_index =
+      Enum.find_index(game.players, fn player ->
+        player.user_id == user_id
+      end)
 
     player = player_index && Enum.at(game.players, player_index)
-    playable_cards = player && Games.playable_cards(game, player)
+    playable_cards = Games.playable_cards(game, player)
 
     players =
       game.players
@@ -213,8 +215,9 @@ defmodule GolfWeb.GameLive do
     end)
   end
 
-  # don't do anything if n is nil or 0
-  defp maybe_rotate(list, n) when is_nil(n) or 0 == n, do: list
+  # don't do anything if n is 0 or nil
+  defp maybe_rotate(list, 0), do: list
+  defp maybe_rotate(list, nil), do: list
 
   # otherwise rotate the list n elements
   defp maybe_rotate(list, n) do

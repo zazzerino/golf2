@@ -11,10 +11,10 @@ defmodule Golf.Games do
   defguard is_players_turn(game, player)
            when rem(game.turn, length(game.players)) == player.turn
 
-  def create_game(host_user_id) do
+  def create_game(user_id) do
     deck = new_deck(@num_decks) |> Enum.shuffle()
-    host_player = %Player{user_id: host_user_id, turn: 0}
-    %Game{host_id: host_user_id, deck: deck, players: [host_player], events: []}
+    host_player = %Player{user_id: user_id, turn: 0}
+    %Game{host_id: user_id, deck: deck, players: [host_player], events: []}
   end
 
   def add_player(%Game{status: :init} = game, %Player{} = player) do
@@ -61,6 +61,22 @@ defmodule Golf.Games do
       game = %Game{game | players: players, status: status}
 
       {:ok, game}
+    end
+  end
+
+  def handle_event(%Game{status: :take} = game, %GameEvent{action: :take_from_deck} = event) do
+    {player, index} = get_player(game, event.player_id)
+
+    if is_players_turn(game, player) do
+      {:ok, card, deck} = deal_from_deck(game.deck)
+      players = List.update_at(game.players, index, fn p -> %Player{p | held_card: card} end)
+
+      {:ok,
+       game
+       |> Map.put(:deck, deck)
+       |> Map.put(:players, players)}
+    else
+      {:error, :not_players_turn}
     end
   end
 

@@ -88,7 +88,7 @@ defmodule Golf.GamesDb do
 
     player_changesets =
       Enum.zip(game.players, changes.players)
-      |> Enum.map(fn {old, new} -> Player.changeset(old, %{hand: new.hand}) end)
+      |> Enum.map(fn {p, changes} -> Player.changeset(p, %{hand: changes.hand}) end)
 
     {:ok, _} =
       Ecto.Multi.new()

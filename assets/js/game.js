@@ -22,13 +22,14 @@ const TABLE_CARD_Y = GAME_HEIGHT / 2;
 export class GameContext {
   constructor(game, containerSelector, pushEvent) {
     this.game = game;
-    this.pushEvent = pushEvent;
+    this.pushEvent = pushEvent; // how we'll send messages to the server
     this.stage = new PIXI.Container();
 
     this.renderer = new PIXI.Renderer({
       width: GAME_WIDTH,
       height: GAME_HEIGHT,
-      backgroundColor: 0x2e8b57
+      backgroundColor: 0x2e8b57,
+      antialias: true,
     });
 
     this.container = document.querySelector(containerSelector);
@@ -63,16 +64,11 @@ export class GameContext {
     }
   }
 
-  // server events
+  // events from server
 
   onGameStart(game) {
     this.game = game;
     this.tweenDeckStart();
-    
-    for (const player of this.game.players) {
-      const hand = this.addHand(player);
-      this.tweenHandDeal(hand);
-    }
   }
 
   onPlayerJoin(game, _playerId) {
@@ -84,33 +80,55 @@ export class GameContext {
 
     switch (event.action) {
       case "flip":
-        this.handleFlip(event);
+        this.onFlip(event);
         break;
     }
   }
 
-  handleFlip(event) {
-    const player = this.game.players.find(p => p.id === event.player_id);
-    const handContainer = this.sprites.hands[player.position];
-
+  onFlip(event) {
     const index = event.hand_index;
-    const oldSprite = handContainer.children[index];
+    const player = this.game.players.find(p => p.id === event.player_id);
+
+    const handSprites = this.sprites.hands[player.position];
+    const oldSprite = handSprites[index];
 
     const cardName = player.hand[index]["name"];
-    const coord = handCardCoord(index);
+    const coord = handCardCoord(player.position, index);
 
     const newSprite = makeCardSprite(cardName, coord.x, coord.y);
-    handContainer.addChild(newSprite);
+    this.stage.addChild(newSprite)
 
-    this.tweenFlip(newSprite, coord.x);
+    this.tweenWiggle(newSprite, coord.x);
 
-    for (let i = 0; i < handContainer.children.length; i++) {
-      if (!this.game.playable_cards.includes(`hand_${i}`)) {
-        makeCardUnplayable(handContainer.children[i]);
+    for (let i = 0; i < handSprites.length; i++) {
+      if (!this.placeIsPlayable(`hand_${i}`)) {
+        makeCardUnplayable(handSprites[i]);
       }
     }
 
-    setTimeout(() => { oldSprite.visible = false }, 100);
+    if (this.placeIsPlayable("deck")) {
+      makeCardPlayable(this.sprites.deck, this.onDeckClick);
+    }
+
+    if (this.placeIsPlayable("table")) {
+      makeCardPlayable(this.sprites.tableCards[0], this.onTableClick);
+    }
+
+    setTimeout(() => { oldSprite.visible = false }, 200);
+  }
+
+  // events from client
+
+  onHandClick(player_id, hand_index) {
+    this.pushEvent("hand_click", { player_id, hand_index });
+  }
+
+  onDeckClick() {
+    console.log("clicked deck");
+  }
+
+  onTableClick() {
+    console.log("table clicked");
   }
 
   // deck
@@ -119,6 +137,10 @@ export class GameContext {
     const x = deckX(this.game.status);
     const sprite = makeCardSprite(DOWN_CARD, x, DECK_Y);
     sprite.place = "deck";
+
+    if (this.placeIsPlayable("deck")) {
+      makeCardPlayable(sprite, this.onDeckClick);
+    }
 
     this.sprites.deck = sprite;
     this.stage.addChild(sprite);
@@ -137,6 +159,11 @@ export class GameContext {
   addTableCard(name) {
     const sprite = makeCardSprite(name, TABLE_CARD_X, TABLE_CARD_Y);
     sprite.place = "table";
+
+    if (this.placeIsPlayable("table")) {
+      makeCardPlayable(sprite, this.onTableClick);
+    }
+
     this.sprites.tableCards.push(sprite);
     this.stage.addChild(sprite);
   }
@@ -144,57 +171,44 @@ export class GameContext {
   // player hands
 
   addHand(player) {
-    const container = new PIXI.Container();
-    const coord = handCoord(player.position);
-    
-    container.x = coord.x;
-    container.y = coord.y;
-    container.angle = coord.angle;
-    
-    container.pivot.x = container.width / 2;
-    container.pivot.y = container.height / 2;
-
-    for (let i = 0; i < player.hand.length; i++) {
+    for (let i = player.hand.length - 1; i >= 0; i--) {
       const card = player.hand[i];
       const name = card["face_up?"] ? card.name : DOWN_CARD;
 
-      const sprite = makeCardSprite(name);
+      const coord = handCardCoord(player.position, i);
+      const sprite = makeCardSprite(name, coord.x, coord.y, coord.rotation);
+
       sprite.place = "hand";
       sprite.handIndex = i;
 
-      const coord = handCardCoord(i);
-      sprite.x = coord.x;
-      sprite.y = coord.y;
-
-      const isPlayable = this.game.playable_cards.includes(`hand_${i}`);
-
-      if (isPlayable) {
-        makeCardPlayable(sprite, () => {
-          this.pushEvent("hand_card_clicked", {playerId: player.id, handIndex: i});
-        });
+      if (this.placeIsPlayable(`hand_${i}`)) {
+        makeCardPlayable(sprite, () => this.onHandClick(player.id, i));
       }
 
-      container.addChild(sprite);
+      this.sprites.hands[player.position][i] = sprite;
+      this.stage.addChild(sprite);
     }
-
-    this.sprites.hands[player.position] = container;
-    this.stage.addChild(container);
-
-    return container;
   }
 
   // tweens
 
   tweenDeckFromTop() {
-    tweenFromY(this.sprites.deck, -CARD_HEIGHT / 2, 1000)
+    const sprite = this.sprites.deck;
+    const toY = sprite.y;
+    const fromY = -CARD_HEIGHT / 2;
+    sprite.y = fromY;
+
+    new TWEEN.Tween(this.sprites.deck)
+      .to({ y: toY }, 1000)
+      .easing(TWEEN.Easing.Quadratic.Out)
       .start();
   }
 
   tweenDeckStart() {
-    const newX = deckX(this.game.status);
+    const toX = deckX(this.game.status);
 
     new TWEEN.Tween(this.sprites.deck)
-      .to({ x: newX }, 200)
+      .to({ x: toX }, 200)
       .easing(TWEEN.Easing.Quadratic.Out)
       .onComplete(() => {
         this.addTableCards();
@@ -207,48 +221,82 @@ export class GameContext {
     const sprite = this.sprites.tableCards[0];
     const deck = this.sprites.deck;
 
-    tweenFrom(sprite, deck.x, deck.y, 600)
+    const toX = sprite.x;
+    const toY = sprite.y;
+    
+    const fromX = deck.x;
+    const fromY = deck.y;
+
+    sprite.x = fromX;
+    sprite.y = fromY;
+
+    new TWEEN.Tween(sprite)
+      .to({ x: toX, y: toY }, 400)
+      .easing(TWEEN.Easing.Quadratic.Out)
+      .onComplete(() => {
+        for (const player of this.game.players) {
+          this.addHand(player);
+          this.tweenHandDeal(player.position);
+        }
+      })
       .start();
   }
 
-  tweenHandDeal(handContainer) {
-    for (const sprite of handContainer.children) {
-      tweenFrom(sprite, 0, 0, 1000)
-        .delay(randRange(100, 600))
+  tweenHandDeal(position) {
+    const sprites = this.sprites.hands[position];
+
+    for (let i = 0; i < sprites.length; i++) {
+    // for (let i = sprites.length - 1; i >= 0; i--) {
+      const sprite = sprites[i];
+
+      const toX = sprite.x;
+      const toY = sprite.y;
+
+      sprite.x = this.sprites.deck.x;
+      sprite.y = this.sprites.deck.y;
+
+      new TWEEN.Tween(sprite)
+        .to({ x: toX, y: toY }, 1000)
+        .easing(TWEEN.Easing.Quadratic.Out)
+        .delay(i * 100)
         .start();
     }
   }
 
-  tweenFlip(sprite, finalX)  {
-    sprite.x = finalX - 1;
+  tweenWiggle(sprite, toX, distancePx = 2, repeats = 2)  {
+    const tweenReturn = new TWEEN.Tween(sprite)
+      .to({ x: toX }, 70)
+      .easing(TWEEN.Easing.Quadratic.Out)
+
+    sprite.x = toX - distancePx;
 
     new TWEEN.Tween(sprite)
-      .to({x: finalX + 1}, 150)
-      .easing(TWEEN.Easing.Cubic.InOut)
-      .repeat(2)
+      .to({ x: toX + distancePx }, 140)
+      .easing(TWEEN.Easing.Quintic.InOut)
+      .repeat(repeats)
       .yoyo(true)
-      .onComplete(() => {
-        new TWEEN.Tween(sprite)
-          .to({x: finalX}, 65)
-          .easing(TWEEN.Easing.Quartic.Out)
-          .start();
-      })
+      .chain(tweenReturn)
       .start();
+  }
+
+  placeIsPlayable(cardPlace) {
+    return this.game.playable_cards.includes(cardPlace);
   }
 }
 
 // sprite helpers
 
-function makeCardSprite(cardName, x = 0, y = 0) {
+function makeCardSprite(cardName, x = 0, y = 0, rotation = 0) {
   const path = `/images/cards/${cardName}.svg`;
   const sprite = PIXI.Sprite.from(path);
+  sprite.cardName = cardName;
 
   sprite.scale.set(CARD_SCALE, CARD_SCALE);
   sprite.anchor.set(0.5);
 
   sprite.x = x;
   sprite.y = y;
-  sprite.cardName = cardName;
+  sprite.rotation = rotation;
 
   return sprite;
 }
@@ -262,30 +310,9 @@ function makeCardPlayable(sprite, callback) {
 
 function makeCardUnplayable(sprite) {
   sprite.eventMode = "none";
-  sprite.cursor = "NONE";
+  sprite.cursor = "none";
   sprite.filters = [];
   sprite.on("pointerdown", () => null);
-}
-
-function tweenFromY(sprite, fromY, duration, easingFn = TWEEN.Easing.Quadratic.Out) {
-  const toY = sprite.y;
-  sprite.y = fromY;
-
-  return new TWEEN.Tween(sprite)
-    .to({ y: toY }, duration)
-    .easing(easingFn);
-}
-
-function tweenFrom(sprite, fromX, fromY, duration, easingFn = TWEEN.Easing.Quadratic.Out) {
-  const toX = sprite.x;
-  const toY = sprite.y;
-
-  sprite.x = fromX;
-  sprite.y = fromY;
-
-  return new TWEEN.Tween(sprite)
-    .to({ x: toX, y: toY }, duration)
-    .easing(easingFn);
 }
 
 // sprite coords
@@ -296,71 +323,153 @@ function deckX(gameStatus) {
     : GAME_WIDTH / 2 - CARD_WIDTH / 2;
 }
 
-function handCoord(position) {
-  let x, y, angle;
-
-  switch (position) {
-    case "bottom":
-      x = GAME_WIDTH / 2;
-      y = GAME_HEIGHT - CARD_HEIGHT * 1.4;
-      angle = 0;
-      break;
-
-    case "top":
-      x = GAME_WIDTH / 2;
-      y = CARD_HEIGHT * 1.4;
-      angle = 180;
-      break;
-
-    case "left":
-      x = CARD_HEIGHT * 1.4;
-      y = GAME_HEIGHT / 2;
-      angle = 90;
-      break;
-
-    case "right":
-      x = GAME_WIDTH - CARD_HEIGHT * 1.4;
-      y = GAME_HEIGHT / 2;
-      angle = 270;
-      break;
-
-    default:
-      throw new Error(`position ${position} must be one of: "bottom", "left", "top", "right"`);
-  }
-
-  return { x, y, angle };
+function handRotation(position) {
+  return position == "left" || position === "right"
+    ? toRadians(90)
+    : 0;
 }
 
-function handCardCoord(handIndex) {
+function handCardCoord(position, index, xPadding = 3, yPadding = 10) {
   let x = 0, y = 0;
 
-  switch (handIndex) {
-    case 0:
-    case 3:
-      x = -CARD_WIDTH - 5;
-      break;
+  // terrible
+  if (position === "bottom") {
+    switch (index) {
+      case 0:
+        x = GAME_WIDTH / 2 - CARD_WIDTH - xPadding;
+        y = GAME_HEIGHT - CARD_HEIGHT * 1.5 - yPadding * 1.3;
+        break;
 
-    case 2:
-    case 5:
-      x = CARD_WIDTH + 5;
-      break;
+      case 1:
+        x = GAME_WIDTH / 2;
+        y = GAME_HEIGHT - CARD_HEIGHT * 1.5 - yPadding * 1.3;
+        break;
+
+      case 2:
+        x = GAME_WIDTH / 2 + CARD_WIDTH + xPadding;
+        y = GAME_HEIGHT - CARD_HEIGHT * 1.5 - yPadding * 1.3;
+        break;
+
+      case 3:
+        x = GAME_WIDTH / 2 - CARD_WIDTH - xPadding;
+        y = GAME_HEIGHT - CARD_HEIGHT / 2 - yPadding;
+        break;
+
+      case 4:
+        x = GAME_WIDTH / 2;
+        y = GAME_HEIGHT - CARD_HEIGHT / 2 - yPadding;
+        break;
+
+      case 5:
+        x = GAME_WIDTH / 2 + CARD_WIDTH + xPadding;
+        y = GAME_HEIGHT - CARD_HEIGHT / 2 - yPadding;
+        break;
+    }
+  } else if (position === "top") {
+    switch (index) {
+      case 0:
+        x = GAME_WIDTH / 2 + CARD_WIDTH + xPadding;
+        y = CARD_HEIGHT * 1.5 + yPadding * 1.3;
+        break;
+
+      case 1:
+        x = GAME_WIDTH / 2;
+        y = CARD_HEIGHT * 1.5 + yPadding * 1.3;
+        break;
+
+      case 2:
+        x = GAME_WIDTH / 2 - CARD_WIDTH - xPadding;
+        y = CARD_HEIGHT * 1.5 + yPadding * 1.3;
+        break;
+
+      case 3:
+        x = GAME_WIDTH / 2 + CARD_WIDTH + xPadding;
+        y = CARD_HEIGHT / 2 + yPadding;
+        break;
+
+      case 4:
+        x = GAME_WIDTH / 2;
+        y = CARD_HEIGHT / 2 + yPadding;
+        break;
+
+      case 5:
+        x = GAME_WIDTH / 2 - CARD_WIDTH - xPadding;
+        y = CARD_HEIGHT / 2 + yPadding;
+        break;
+    }
+  } else if (position === "left") {
+    switch (index) {
+      case 0:
+        x = CARD_HEIGHT * 1.5 + yPadding * 1.3;
+        y = GAME_HEIGHT / 2 - CARD_WIDTH - xPadding;
+        break;
+
+      case 1:
+        x = CARD_HEIGHT * 1.5 + yPadding * 1.3;
+        y = GAME_HEIGHT / 2;
+        break;
+
+      case 2:
+        x = CARD_HEIGHT * 1.5 + yPadding * 1.3;
+        y = GAME_HEIGHT / 2 + CARD_WIDTH + xPadding;
+        break;
+
+      case 3:
+        x = CARD_HEIGHT / 2 + yPadding;
+        y = GAME_HEIGHT / 2 - CARD_WIDTH - xPadding;
+        break;
+
+      case 4:
+        x = CARD_HEIGHT / 2 + yPadding;
+        y = GAME_HEIGHT / 2;
+        break;
+
+      case 5:
+        x = CARD_HEIGHT / 2 + yPadding;
+        y = GAME_HEIGHT / 2 + CARD_WIDTH + xPadding;
+        break;
+    }
+  } else if (position === "right") {
+    switch (index) {
+      case 0:
+        x = GAME_WIDTH - CARD_HEIGHT * 1.5 - yPadding * 1.3;
+        y = GAME_HEIGHT / 2 + CARD_WIDTH + xPadding;
+        break;
+      
+      case 1:
+        x = GAME_WIDTH - CARD_HEIGHT * 1.5 - yPadding * 1.3;
+        y = GAME_HEIGHT / 2;
+        break;
+
+      case 2:
+        x = GAME_WIDTH - CARD_HEIGHT * 1.5 - yPadding * 1.3;
+        y = GAME_HEIGHT / 2 - CARD_WIDTH - xPadding;
+        break;
+      
+      case 3:
+        x = GAME_WIDTH - CARD_HEIGHT / 2 - yPadding;
+        y = GAME_HEIGHT / 2 + CARD_WIDTH + xPadding;
+        break;
+      
+      case 4:
+        x = GAME_WIDTH - CARD_HEIGHT / 2 - yPadding;
+        y = GAME_HEIGHT / 2;
+        break;
+
+      case 5:
+        x = GAME_WIDTH - CARD_HEIGHT / 2 - yPadding;
+        y = GAME_HEIGHT / 2 - CARD_WIDTH - xPadding;
+        break;
+    }
   }
 
-  switch (handIndex) {
-    case 0:
-    case 1:
-    case 2:
-      y = -CARD_HEIGHT / 2 - 2;
-      break;
+  const rotation = handRotation(position);
 
-    case 3:
-    case 4:
-    case 5:
-      y = CARD_HEIGHT / 2 + 2;
-      break;
-  }
+  return { x, y, rotation };
+}
 
-  return { x, y };
+function toRadians(degrees) {
+  return degrees * (Math.PI / 180);
 }
 
 function randRange(min, max) {
