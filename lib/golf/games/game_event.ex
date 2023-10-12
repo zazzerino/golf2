@@ -21,7 +21,12 @@ defmodule Golf.Games.GameEvent do
     |> validate_required([:game_id, :player_id, :action])
   end
 
-  def new(game_id, player_id, action, hand_index) do
-    %__MODULE__{game_id: game_id, player_id: player_id, action: action, hand_index: hand_index}
+  def new(game_id, player_id, action, hand_index \\ nil) do
+    %__MODULE__{
+      game_id: game_id,
+      player_id: player_id,
+      action: action,
+      hand_index: hand_index
+    }
   end
 end

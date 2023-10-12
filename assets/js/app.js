@@ -20,7 +20,16 @@ if (location.pathname.match(GAME_URL_REGEX)) {
     mounted() {
       this.handleEvent("game-loaded", data => {
         console.log("game loaded: ", data);
-        GameCtx = new GameContext(data.game, GAME_CONTAINER_SELECTOR, this.pushEvent);
+
+        GameCtx = new GameContext(
+          data.game, 
+          GAME_CONTAINER_SELECTOR,
+          /**
+           * Bind `pushEvent` to `this` now because `this` will refer to
+           * the GameContext later when we try to use it inside the class.
+           */
+          this.pushEvent.bind(this)
+        );
 
         if (data.game.status === "init") {
           GameCtx.tweenDeckFromTop();
@@ -35,6 +44,11 @@ if (location.pathname.match(GAME_URL_REGEX)) {
       this.handleEvent("player-joined", data => {
         console.log("player joined: ", data);
         GameCtx.onPlayerJoin(data.game, data.playerId);
+      });
+
+      this.handleEvent("game_event", data => {
+        console.log("game event: ", data);
+        GameCtx.onGameEvent(data.game, data.event);
       });
     }
   }

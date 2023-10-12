@@ -4,7 +4,7 @@ defmodule Golf.GamesDb do
   alias Golf.Repo
   alias Golf.Users.User
   alias Golf.Games
-  alias Golf.Games.{Game, Player, JoinRequest}
+  alias Golf.Games.{Game, Player, GameEvent, JoinRequest}
 
   def get_game(game_id) do
     Repo.get(Game, game_id)
@@ -103,6 +103,28 @@ defmodule Golf.GamesDb do
     Enum.reduce(changesets, multi, fn cs, multi ->
       Ecto.Multi.update(multi, {:player, cs.data.id}, cs)
     end)
+  end
+
+  def handle_event(%Game{} = game, %GameEvent{} = event) do
+    {:ok, new_game} = Games.handle_event(game, event)
+
+    game_changes = Map.take(new_game, [:status, :deck])
+    game_changeset = Game.changeset(game, game_changes)
+
+    {player, _} = Games.get_player(game, event.player_id)
+    {new_player, _} = Games.get_player(new_game, event.player_id)
+
+    player_changes = Map.take(new_player, [:hand])
+    player_changeset = Player.changeset(player, player_changes)
+
+    {:ok, %{event: event}} =
+      Ecto.Multi.new()
+      |> Ecto.Multi.update(:game, game_changeset)
+      |> Ecto.Multi.update(:player, player_changeset)
+      |> Ecto.Multi.insert(:event, event)
+      |> Repo.transaction()
+
+    {:ok, new_game, event}
   end
 
   # def game_exists?(game_id) do

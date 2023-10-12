@@ -43,28 +43,44 @@ defmodule Golf.Games do
   end
 
   def handle_event(%Game{status: :flip_2} = game, %GameEvent{action: :flip} = event) do
-    player = get_player(game, event.player_id)
+    {player, index} = get_player(game, event.player_id)
 
     if num_cards_face_up(player.hand) < 2 do
-      hand = flip_card(player.hand, event.hand_index)
+      players =
+        List.update_at(game.players, index, fn p ->
+          hand = flip_card(p.hand, event.hand_index)
+          Map.put(p, :hand, hand)
+        end)
+
+      all_done_flipping? =
+        Enum.all?(players, fn p ->
+          num_cards_face_up(p.hand) >= 2
+        end)
+
+      status = if all_done_flipping?, do: :take, else: :flip_2
+      game = %Game{game | players: players, status: status}
+
+      {:ok, game}
     end
   end
 
-  defp get_player(game, player_id) do
-    Enum.find(game.players, fn p -> p.id == player_id end)
+  def get_player(game, player_id) do
+    index = Enum.find_index(game.players, fn p -> p.id == player_id end)
+    player = Enum.at(game.players, index)
+    {player, index}
   end
 
   defp flip_card(hand, index) do
     List.update_at(hand, index, fn card -> Map.put(card, "face_up?", true) end)
   end
 
-  defp flip_all(hand) do
-    Enum.map(hand, fn card -> Map.put(card, "face_up?", true) end)
-  end
+  # defp flip_all(hand) do
+  #   Enum.map(hand, fn card -> Map.put(card, "face_up?", true) end)
+  # end
 
-  def swap_card(hand, card_name, index) do
-    old_card = Enum.at(hand, index, %{"name" => card_name, "face_up?" => true})
-  end
+  # def swap_card(hand, card_name, index) do
+  #   old_card = Enum.at(hand, index, %{"name" => card_name, "face_up?" => true})
+  # end
 
   def score(hand) do
     hand

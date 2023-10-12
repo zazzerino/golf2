@@ -75,15 +75,42 @@ export class GameContext {
     }
   }
 
-  onPlayerJoin(game, playerId) {
+  onPlayerJoin(game, _playerId) {
     this.game = game;
   }
 
-  // client events
+  onGameEvent(game, event) {
+    this.game = game;
 
-  onHandClick(sprite) {
-    console.log("hand clicked", sprite.handIndex);
-    // const gameEvent = {game_id: this.game.id, }
+    switch (event.action) {
+      case "flip":
+        this.handleFlip(event);
+        break;
+    }
+  }
+
+  handleFlip(event) {
+    const player = this.game.players.find(p => p.id === event.player_id);
+    const handContainer = this.sprites.hands[player.position];
+
+    const index = event.hand_index;
+    const oldSprite = handContainer.children[index];
+
+    const cardName = player.hand[index]["name"];
+    const coord = handCardCoord(index);
+
+    const newSprite = makeCardSprite(cardName, coord.x, coord.y);
+    handContainer.addChild(newSprite);
+
+    this.tweenFlip(newSprite, coord.x);
+
+    for (let i = 0; i < handContainer.children.length; i++) {
+      if (!this.game.playable_cards.includes(`hand_${i}`)) {
+        makeCardUnplayable(handContainer.children[i]);
+      }
+    }
+
+    setTimeout(() => { oldSprite.visible = false }, 100);
   }
 
   // deck
@@ -142,7 +169,9 @@ export class GameContext {
       const isPlayable = this.game.playable_cards.includes(`hand_${i}`);
 
       if (isPlayable) {
-        makeCardPlayable(sprite, this.onHandClick);
+        makeCardPlayable(sprite, () => {
+          this.pushEvent("hand_card_clicked", {playerId: player.id, handIndex: i});
+        });
       }
 
       container.addChild(sprite);
@@ -189,6 +218,23 @@ export class GameContext {
         .start();
     }
   }
+
+  tweenFlip(sprite, finalX)  {
+    sprite.x = finalX - 1;
+
+    new TWEEN.Tween(sprite)
+      .to({x: finalX + 1}, 150)
+      .easing(TWEEN.Easing.Cubic.InOut)
+      .repeat(2)
+      .yoyo(true)
+      .onComplete(() => {
+        new TWEEN.Tween(sprite)
+          .to({x: finalX}, 65)
+          .easing(TWEEN.Easing.Quartic.Out)
+          .start();
+      })
+      .start();
+  }
 }
 
 // sprite helpers
@@ -212,6 +258,13 @@ function makeCardPlayable(sprite, callback) {
   sprite.cursor = "pointer";
   sprite.filters = [new OutlineFilter(2, 0xff00ff)];
   sprite.on("pointerdown", event => callback(event.currentTarget))
+}
+
+function makeCardUnplayable(sprite) {
+  sprite.eventMode = "none";
+  sprite.cursor = "NONE";
+  sprite.filters = [];
+  sprite.on("pointerdown", () => null);
 }
 
 function tweenFromY(sprite, fromY, duration, easingFn = TWEEN.Easing.Quadratic.Out) {
