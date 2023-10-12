@@ -165,12 +165,6 @@ defmodule GolfWeb.GameLive do
     {:noreply, socket}
   end
 
-  # @impl true
-  # def handle_event("do_game_event", %{"event" => event}, socket) do
-  #   IO.inspect(event, label: "DO_GAME_EVENT")
-  #   {:noreply, socket}
-  # end
-
   defp topic(game_id), do: "game:#{game_id}"
 
   defp subscribe(topic) do
