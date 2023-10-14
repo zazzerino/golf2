@@ -61,7 +61,8 @@ defmodule Golf.GamesDb do
     end)
   end
 
-  # takes the updates from an Ecto.Multi and returns a map %{id => player} of the players who were updated
+  # takes the updates from an Ecto.Multi and returns a
+  # map %{id => player} of the players who were updated
   defp reduce_player_updates(updates) do
     Enum.reduce(updates, %{}, fn {key, val}, acc ->
       case key do

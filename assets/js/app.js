@@ -16,6 +16,7 @@ const GAME_CONTAINER_SELECTOR = "#game-container";
 
 // if we're on a game page, draw the game and setup the GameContainer
 if (location.pathname.match(GAME_URL_REGEX)) {
+  const container = document.querySelector(GAME_CONTAINER_SELECTOR);
   let GameCtx;
 
   // the <div> this connects to is in `game_live.html.heex`
@@ -23,7 +24,6 @@ if (location.pathname.match(GAME_URL_REGEX)) {
     mounted() {
       this.handleEvent("game_loaded", data => {
         console.log("game loaded: ", data);
-        const container = document.querySelector(GAME_CONTAINER_SELECTOR);
 
         GameCtx = new GameContext(
           container,
@@ -32,7 +32,8 @@ if (location.pathname.match(GAME_URL_REGEX)) {
         );
 
         if (data.game.status === "init") {
-          GameCtx.tweenDeckFromTop().start();
+          GameCtx.tweenDeckFromTop()
+            .start();
         }
       });
 

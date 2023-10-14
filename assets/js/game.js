@@ -21,6 +21,7 @@ const DOWN_CARD = "2B";
 
 export class GameContext {
   constructor(container, pushEvent, game) {
+    window.gameCtx = this;
     this.container = container;
     this.pushEvent = pushEvent;
     this.game = game;
@@ -59,7 +60,7 @@ export class GameContext {
     if (this.game.status !== "init") {
       this.addTableCards();
 
-      for (const player of Object.values(this.game.players)) {
+      for (const player of this.game.players) {
         this.addHand(player);
       }
     }
@@ -76,7 +77,7 @@ export class GameContext {
 
         this.tweenTableDeal()
           .onComplete(() => {
-            for (const player of Object.values(this.game.players)) {
+            for (const player of this.game.players) {
               this.addHand(player);
 
               this.tweenHandDeal(player.position)
@@ -177,7 +178,6 @@ export class GameContext {
     const sprite = makeCardSprite(name, TABLE_CARD_X, TABLE_CARD_Y);
     sprite.place = "table";
 
-    console.log("CARDS", this.game.playable_cards)
     if (this.placeIsPlayable("table")) {
       makeCardPlayable(sprite, this.onTableClick);
     }
@@ -253,7 +253,6 @@ export class GameContext {
     const cardTweens = [];
 
     for (let i = sprites.length - 1; i >= 0; i--) {
-      console.log("tweening" + i)
       const sprite = sprites[i];
 
       const toX = sprite.x;

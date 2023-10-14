@@ -4,7 +4,7 @@ defmodule GolfWeb.GameLive do
   alias GolfWeb.UserAuth
   alias Golf.GamesDb
   alias Golf.Games
-  alias Golf.Games.{Game, GameEvent, JoinRequest}
+  alias Golf.Games.{Game, ClientData, GameEvent, JoinRequest}
 
   @impl true
   def mount(%{"game_id" => game_id}, session, socket) do
@@ -37,29 +37,6 @@ defmodule GolfWeb.GameLive do
     end
   end
 
-  defp player_data(user_id, game, players) do
-    positions = hand_positions(map_size(players))
-
-    players =
-      players
-      |> Enum.with_index()
-      |> Enum.map(fn {{id, player}, index} ->
-        pos = Enum.at(positions, index)
-        {id, put_position_and_score(player, pos)}
-      end)
-      |> Enum.into(%{})
-
-    player =
-      players
-      |> Map.values()
-      |> Enum.find(fn p -> p.user_id == user_id end)
-
-    player_id = player && player.id
-    playable_cards = Games.playable_cards(game, player)
-
-    %{players: players, player_id: player_id, playable_cards: playable_cards}
-  end
-
   @impl true
   def handle_info({:load_game, game_id}, socket) do
     with user_id <- socket.assigns.user.id,
@@ -83,13 +60,12 @@ defmodule GolfWeb.GameLive do
           not has_requested_join? and
           not Enum.any?(players, fn {_, p} -> p.user_id == user_id end)
 
-      %{players: players, player_id: player_id, playable_cards: playable_cards} =
-        player_data =
-        player_data(user_id, game, players)
+      %{player_id: player_id, playable_cards: playable_cards} =
+        client_data = ClientData.from(user_id, game, players)
 
       {:noreply,
        socket
-       |> push_event("game_loaded", %{"game" => Map.merge(game, player_data)})
+       |> push_event("game_loaded", %{"game" => client_data})
        |> assign(
          game: game,
          players: players,
@@ -107,13 +83,12 @@ defmodule GolfWeb.GameLive do
   def handle_info({:game_started, game, players}, socket) do
     user_id = socket.assigns.user.id
 
-    %{players: players, player_id: player_id, playable_cards: playable_cards} =
-      player_data =
-      player_data(user_id, game, players)
+    %{player_id: player_id, playable_cards: playable_cards} =
+      client_data = ClientData.from(user_id, game, players)
 
     {:noreply,
      socket
-     |> push_event("game_started", %{"game" => Map.merge(game, player_data)})
+     |> push_event("game_started", %{"game" => client_data})
      |> assign(
        game: game,
        players: players,
@@ -162,7 +137,7 @@ defmodule GolfWeb.GameLive do
       players = socket.assigns.players
       {:ok, game, players} = GamesDb.start_game(game, players)
       broadcast(game.id, {:game_started, game, players})
-      {:noreply, assign(socket, game: game, players: players, can_start_game?: false)}
+      {:noreply, assign(socket, can_start_game?: false)}
     else
       {:noreply, socket}
     end
@@ -223,60 +198,5 @@ defmodule GolfWeb.GameLive do
 
   defp broadcast(game_id, msg) do
     Phoenix.PubSub.broadcast(Golf.PubSub, topic(game_id), msg)
-  end
-
-  # defp user_is_playing?(user_id, players) do
-  #   Enum.any?(players, fn {_, p} -> p.user_id == user_id end)
-  # end
-
-  # defp user_is_player?(user_id, players) do
-  #   Enum.any?(players, fn p -> p.user_id == user_id end)
-  # end
-
-  # defp put_user_data(game, user_id) do
-  #   positions = hand_positions(length(game.players))
-
-  #   player_index =
-  #     Enum.find_index(game.players, fn player ->
-  #       player.user_id == user_id
-  #     end)
-
-  #   player = player_index && Enum.at(game.players, player_index)
-  #   playable_cards = Games.playable_cards(game, player)
-
-  #   players =
-  #     game.players
-  #     |> maybe_rotate(player_index)
-  #     |> put_positions_and_scores(positions)
-
-  #   %Game{game | players: players, playable_cards: playable_cards}
-  # end
-
-  defp hand_positions(num_players) do
-    case num_players do
-      1 -> ~w(bottom)
-      2 -> ~w(bottom top)
-      3 -> ~w(bottom left right)
-      4 -> ~w(bottom left top right)
-    end
-  end
-
-  defp put_position_and_score(player, position) do
-    player
-    |> Map.put(:position, position)
-    |> Map.put(:score, Games.score(player.hand))
-  end
-
-  # don't do anything if n is 0 or nil
-  defp maybe_rotate(list, 0), do: list
-  defp maybe_rotate(list, nil), do: list
-
-  # otherwise rotate the list n elements
-  defp maybe_rotate(list, n) do
-    list
-    |> Stream.cycle()
-    |> Stream.drop(n)
-    |> Stream.take(length(list))
-    |> Enum.to_list()
   end
 end
