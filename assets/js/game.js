@@ -5,8 +5,6 @@ import { OutlineFilter } from "@pixi/filter-outline";
 const GAME_WIDTH = 600;
 const GAME_HEIGHT = 600;
 
-const DOWN_CARD = "2B";
-
 const CARD_SVG_WIDTH = 240;
 const CARD_SVG_HEIGHT = 336;
 const CARD_SCALE = 0.25;
@@ -19,10 +17,14 @@ const DECK_Y = GAME_HEIGHT / 2;
 const TABLE_CARD_X = GAME_WIDTH / 2 + CARD_WIDTH / 2 + 2;
 const TABLE_CARD_Y = GAME_HEIGHT / 2;
 
+const DOWN_CARD = "2B";
+
 export class GameContext {
-  constructor(game, containerSelector, pushEvent) {
+  constructor(container, pushEvent, game) {
+    this.container = container;
+    this.pushEvent = pushEvent;
     this.game = game;
-    this.pushEvent = pushEvent; // how we'll send messages to the server
+
     this.stage = new PIXI.Container();
 
     this.renderer = new PIXI.Renderer({
@@ -32,7 +34,6 @@ export class GameContext {
       antialias: true,
     });
 
-    this.container = document.querySelector(containerSelector);
     this.container.appendChild(this.renderer.view);
 
     this.sprites = {
@@ -58,7 +59,7 @@ export class GameContext {
     if (this.game.status !== "init") {
       this.addTableCards();
 
-      for (const player of this.game.players) {
+      for (const player of Object.values(this.game.players)) {
         this.addHand(player);
       }
     }
@@ -68,7 +69,23 @@ export class GameContext {
 
   onGameStart(game) {
     this.game = game;
-    this.tweenDeckStart();
+
+    this.tweenDeckStart()
+      .onComplete(() => {
+        this.addTableCards();
+
+        this.tweenTableDeal()
+          .onComplete(() => {
+            for (const player of Object.values(this.game.players)) {
+              this.addHand(player);
+
+              this.tweenHandDeal(player.position)
+                .forEach(t => t.start());
+            }
+          })
+          .start();
+      })
+      .start();
   }
 
   onPlayerJoin(game, _playerId) {
@@ -160,6 +177,7 @@ export class GameContext {
     const sprite = makeCardSprite(name, TABLE_CARD_X, TABLE_CARD_Y);
     sprite.place = "table";
 
+    console.log("CARDS", this.game.playable_cards)
     if (this.placeIsPlayable("table")) {
       makeCardPlayable(sprite, this.onTableClick);
     }
@@ -171,7 +189,7 @@ export class GameContext {
   // player hands
 
   addHand(player) {
-    for (let i = player.hand.length - 1; i >= 0; i--) {
+    for (let i = 0; i < player.hand.length; i++) {
       const card = player.hand[i];
       const name = card["face_up?"] ? card.name : DOWN_CARD;
 
@@ -195,26 +213,21 @@ export class GameContext {
   tweenDeckFromTop() {
     const sprite = this.sprites.deck;
     const toY = sprite.y;
+
     const fromY = -CARD_HEIGHT / 2;
     sprite.y = fromY;
 
-    new TWEEN.Tween(this.sprites.deck)
+    return new TWEEN.Tween(this.sprites.deck)
       .to({ y: toY }, 1000)
       .easing(TWEEN.Easing.Quadratic.Out)
-      .start();
   }
 
   tweenDeckStart() {
     const toX = deckX(this.game.status);
 
-    new TWEEN.Tween(this.sprites.deck)
+    return new TWEEN.Tween(this.sprites.deck)
       .to({ x: toX }, 200)
       .easing(TWEEN.Easing.Quadratic.Out)
-      .onComplete(() => {
-        this.addTableCards();
-        this.tweenTableDeal();
-      })
-      .start();
   }
 
   tweenTableDeal() {
@@ -230,23 +243,17 @@ export class GameContext {
     sprite.x = fromX;
     sprite.y = fromY;
 
-    new TWEEN.Tween(sprite)
+    return new TWEEN.Tween(sprite)
       .to({ x: toX, y: toY }, 400)
-      .easing(TWEEN.Easing.Quadratic.Out)
-      .onComplete(() => {
-        for (const player of this.game.players) {
-          this.addHand(player);
-          this.tweenHandDeal(player.position);
-        }
-      })
-      .start();
+      .easing(TWEEN.Easing.Quadratic.Out);
   }
 
   tweenHandDeal(position) {
     const sprites = this.sprites.hands[position];
+    const cardTweens = [];
 
-    for (let i = 0; i < sprites.length; i++) {
-    // for (let i = sprites.length - 1; i >= 0; i--) {
+    for (let i = sprites.length - 1; i >= 0; i--) {
+      console.log("tweening" + i)
       const sprite = sprites[i];
 
       const toX = sprite.x;
@@ -255,12 +262,15 @@ export class GameContext {
       sprite.x = this.sprites.deck.x;
       sprite.y = this.sprites.deck.y;
 
-      new TWEEN.Tween(sprite)
+      const tween = new TWEEN.Tween(sprite)
         .to({ x: toX, y: toY }, 1000)
         .easing(TWEEN.Easing.Quadratic.Out)
-        .delay(i * 100)
-        .start();
+        .delay((5 - i) * 100);
+
+      cardTweens.push(tween);
     }
+
+    return cardTweens;
   }
 
   tweenWiggle(sprite, toX, distancePx = 2, repeats = 2)  {
@@ -276,7 +286,6 @@ export class GameContext {
       .repeat(repeats)
       .yoyo(true)
       .chain(tweenReturn)
-      .start();
   }
 
   placeIsPlayable(cardPlace) {
@@ -289,8 +298,8 @@ export class GameContext {
 function makeCardSprite(cardName, x = 0, y = 0, rotation = 0) {
   const path = `/images/cards/${cardName}.svg`;
   const sprite = PIXI.Sprite.from(path);
+  
   sprite.cardName = cardName;
-
   sprite.scale.set(CARD_SCALE, CARD_SCALE);
   sprite.anchor.set(0.5);
 
@@ -464,7 +473,6 @@ function handCardCoord(position, index, xPadding = 3, yPadding = 10) {
   }
 
   const rotation = handRotation(position);
-
   return { x, y, rotation };
 }
 

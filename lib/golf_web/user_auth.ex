@@ -23,11 +23,8 @@ defmodule GolfWeb.UserAuth do
 
   # if there's a token in session, we'll assign it to conn
   defp put_user_token(conn, session_token, cookie_token) when is_binary(session_token) do
-    IO.puts("SESSION")
-
     case verify(session_token) do
       {:ok, token, _} ->
-        IO.puts("OK")
         assign(conn, :user_token, token)
 
       _ ->
@@ -37,8 +34,6 @@ defmodule GolfWeb.UserAuth do
 
   # if there's a token in cookies, we'll put in session and assign it to conn
   defp put_user_token(conn, _, cookie_token) when is_binary(cookie_token) do
-    IO.puts("NIL COOKIE")
-
     case verify(cookie_token) do
       {:ok, token, _} ->
         conn
@@ -52,7 +47,6 @@ defmodule GolfWeb.UserAuth do
 
   # if there's no token, let's create a user + token and store the token in session and cookies
   defp put_user_token(conn, _, _) do
-    IO.puts("NIL NIL")
     {_, token} = create_user_and_token()
 
     conn

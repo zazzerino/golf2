@@ -8,77 +8,69 @@ defmodule Golf.Games do
   @num_decks 2
   @hand_size 6
 
-  defguard is_players_turn(game, player)
-           when rem(game.turn, length(game.players)) == player.turn
-
-  def create_game(user_id) do
-    deck = new_deck(@num_decks) |> Enum.shuffle()
-    host_player = %Player{user_id: user_id, turn: 0}
-    %Game{host_id: user_id, deck: deck, players: [host_player], events: []}
-  end
-
-  def add_player(%Game{status: :init} = game, %Player{} = player) do
-    {:ok, %Game{game | players: game.players ++ [player]}}
-  end
-
-  def start_game(%Game{status: :init} = game) do
+  def start_game(%Game{status: :init} = game, players) do
     # deal hands to players
-    num_cards_to_deal = @hand_size * length(game.players)
-    {:ok, cards_to_deal, deck} = deal_from_deck(game.deck, num_cards_to_deal)
+    num_cards_to_deal = @hand_size * map_size(players)
+    {:ok, card_names, deck} = deal_from_deck(game.deck, num_cards_to_deal)
 
     hands =
-      cards_to_deal
+      card_names
       |> Enum.map(fn name -> %{"name" => name, "face_up?" => false} end)
       |> Enum.chunk_every(@hand_size)
 
     players =
-      Enum.zip(game.players, hands)
-      |> Enum.map(fn {player, hand} -> %Player{player | hand: hand} end)
+      Enum.with_index(players)
+      |> Enum.map(fn {{id, player}, index} ->
+        hand = Enum.at(hands, index)
+        {id, Map.put(player, :hand, hand)}
+      end)
+      |> Enum.into(%{})
 
     # deal table card
     {:ok, card, deck} = deal_from_deck(deck)
     table_cards = [card | game.table_cards]
 
-    %Game{game | status: :flip_2, deck: deck, table_cards: table_cards, players: players}
+    game = %Game{game | status: :flip_2, deck: deck, table_cards: table_cards}
+    {:ok, game, players}
   end
 
-  def handle_event(%Game{status: :flip_2} = game, %GameEvent{action: :flip} = event) do
-    {player, index} = get_player(game, event.player_id)
+  # def handle_event(%Game{status: :flip_2} = game, %GameEvent{action: :flip} = event) do
+  #   {player, index} = get_player(game, event.player_id)
 
-    if num_cards_face_up(player.hand) < 2 do
-      players =
-        List.update_at(game.players, index, fn p ->
-          hand = flip_card(p.hand, event.hand_index)
-          Map.put(p, :hand, hand)
-        end)
+  #   if num_cards_face_up(player.hand) < 2 do
+  #     players =
+  #       List.update_at(game.players, index, fn p ->
+  #         hand = flip_card(p.hand, event.hand_index)
+  #         Map.put(p, :hand, hand)
+  #       end)
 
-      all_done_flipping? =
-        Enum.all?(players, fn p ->
-          num_cards_face_up(p.hand) >= 2
-        end)
+  #     all_done_flipping? =
+  #       Enum.all?(players, fn p ->
+  #         num_cards_face_up(p.hand) >= 2
+  #       end)
 
-      status = if all_done_flipping?, do: :take, else: :flip_2
-      game = %Game{game | players: players, status: status}
+  #     status = if all_done_flipping?, do: :take, else: :flip_2
+  #     game = %Game{game | players: players, status: status}
 
-      {:ok, game}
-    end
-  end
+  #     {:ok, game}
+  #   end
+  # end
 
-  def handle_event(%Game{status: :take} = game, %GameEvent{action: :take_from_deck} = event) do
-    {player, index} = get_player(game, event.player_id)
+  # def handle_event(%Game{status: :take} = game, %GameEvent{action: :take_from_deck} = event) do
+  #   {player, index} = get_player(game, event.player_id)
 
-    if is_players_turn(game, player) do
-      {:ok, card, deck} = deal_from_deck(game.deck)
-      players = List.update_at(game.players, index, fn p -> %Player{p | held_card: card} end)
+  #   if is_players_turn(game, player) do
+  #     {:ok, card, deck} = deal_from_deck(game.deck)
+  #     players = List.update_at(game.players, index, fn p -> %Player{p | held_card: card} end)
 
-      {:ok,
-       game
-       |> Map.put(:deck, deck)
-       |> Map.put(:players, players)}
-    else
-      {:error, :not_players_turn}
-    end
-  end
+  #     {:ok,
+  #      game
+  #      |> Map.put(:deck, deck)
+  #      |> Map.put(:players, players)}
+  #   else
+  #     {:error, :not_players_turn}
+  #   end
+  # end
 
   def get_player(game, player_id) do
     index = Enum.find_index(game.players, fn p -> p.id == player_id end)
@@ -112,21 +104,21 @@ defmodule Golf.Games do
     end
   end
 
-  def playable_cards(%Game{} = game, %Player{} = player) when is_players_turn(game, player) do
-    case game.status do
-      s when s in [:flip_2, :flip] ->
-        face_down_cards(player.hand)
+  # def playable_cards(%Game{} = game, %Player{} = player) when is_players_turn(game, player) do
+  #   case game.status do
+  #     s when s in [:flip_2, :flip] ->
+  #       face_down_cards(player.hand)
 
-      s when s in [:take, :last_take] ->
-        [:deck, :table]
+  #     s when s in [:take, :last_take] ->
+  #       [:deck, :table]
 
-      s when s in [:hold, :last_hold] ->
-        [:held, :hand_0, :hand_1, :hand_2, :hand_3, :hand_4, :hand_5]
+  #     s when s in [:hold, :last_hold] ->
+  #       [:held, :hand_0, :hand_1, :hand_2, :hand_3, :hand_4, :hand_5]
 
-      _ ->
-        []
-    end
-  end
+  #     _ ->
+  #       []
+  #   end
+  # end
 
   def playable_cards(%Game{}, _), do: []
 
@@ -134,6 +126,10 @@ defmodule Golf.Games do
 
   defp new_deck(num_decks) when num_decks > 1 do
     @card_names ++ new_deck(num_decks - 1)
+  end
+
+  def new_shuffled_deck() do
+    new_deck(@num_decks) |> Enum.shuffle()
   end
 
   defp deal_from_deck([], _) do
@@ -236,3 +232,6 @@ defmodule Golf.Games do
     end
   end
 end
+
+# defguard is_players_turn(game, player)
+#          when rem(game.turn, length(game.players)) == player.turn

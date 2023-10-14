@@ -23,6 +23,9 @@ defmodule GolfWeb.GameLive do
          page_title: "Game #{game_id}",
          game_id: game_id,
          game: nil,
+         players: nil,
+         player_id: nil,
+         playable_cards: nil,
          user_is_host?: nil,
          can_start_game?: nil,
          can_join_game?: nil,
@@ -34,48 +37,91 @@ defmodule GolfWeb.GameLive do
     end
   end
 
-  @impl true
-  def handle_info({:load_game, game_id}, socket) do
-    user_id = socket.assigns.user.id
+  defp player_data(user_id, game, players) do
+    positions = hand_positions(map_size(players))
 
-    game = GamesDb.get_game(game_id) |> put_user_data(user_id)
+    players =
+      players
+      |> Enum.with_index()
+      |> Enum.map(fn {{id, player}, index} ->
+        pos = Enum.at(positions, index)
+        {id, put_position_and_score(player, pos)}
+      end)
+      |> Enum.into(%{})
 
-    user_is_host? = game.host_id == user_id
-    game_is_init? = game.status == :init
+    player =
+      players
+      |> Map.values()
+      |> Enum.find(fn p -> p.user_id == user_id end)
 
-    join_requests =
-      if game_is_init? do
-        GamesDb.get_unconfirmed_join_requests(game_id)
-      end
+    player_id = player && player.id
+    playable_cards = Games.playable_cards(game, player)
 
-    has_requested_join? =
-      join_requests && Enum.any?(join_requests, fn req -> req.user_id == user_id end)
-
-    can_start_game? = game_is_init? and user_is_host?
-
-    can_join_game? =
-      game_is_init? and not has_requested_join? and not user_is_player?(user_id, game.players)
-
-    :ok = subscribe(topic(game_id))
-
-    {:noreply,
-     socket
-     |> push_event("game_loaded", %{"game" => game})
-     |> assign(
-       game: game,
-       user_is_host?: user_is_host?,
-       can_start_game?: can_start_game?,
-       can_join_game?: can_join_game?,
-       join_requests: join_requests
-     )}
+    %{players: players, player_id: player_id, playable_cards: playable_cards}
   end
 
   @impl true
-  def handle_info({:game_started, game}, socket) do
+  def handle_info({:load_game, game_id}, socket) do
+    with user_id <- socket.assigns.user.id,
+         game when is_struct(game) <- GamesDb.get_game(game_id),
+         players when is_map(players) <- GamesDb.get_players(game_id),
+         :ok <- subscribe(topic(game_id)) do
+      game_is_init? = game.status == :init
+      user_is_host? = game.host_id == user_id
+      can_start_game? = game_is_init? and user_is_host?
+
+      join_requests =
+        if game_is_init? do
+          GamesDb.get_unconfirmed_join_requests(game_id)
+        end
+
+      has_requested_join? =
+        join_requests && Enum.any?(join_requests, fn req -> req.user_id == user_id end)
+
+      can_join_game? =
+        game_is_init? and
+          not has_requested_join? and
+          not Enum.any?(players, fn {_, p} -> p.user_id == user_id end)
+
+      %{players: players, player_id: player_id, playable_cards: playable_cards} =
+        player_data =
+        player_data(user_id, game, players)
+
+      {:noreply,
+       socket
+       |> push_event("game_loaded", %{"game" => Map.merge(game, player_data)})
+       |> assign(
+         game: game,
+         players: players,
+         player_id: player_id,
+         playable_cards: playable_cards,
+         user_is_host?: user_is_host?,
+         can_start_game?: can_start_game?,
+         can_join_game?: can_join_game?,
+         join_requests: join_requests
+       )}
+    end
+  end
+
+  @impl true
+  def handle_info({:game_started, game, players}, socket) do
+    user_id = socket.assigns.user.id
+
+    %{players: players, player_id: player_id, playable_cards: playable_cards} =
+      player_data =
+      player_data(user_id, game, players)
+
     {:noreply,
      socket
-     |> push_event("game_started", %{"game" => game})
-     |> assign(game: game, can_start_game?: false, can_join_game?: false)}
+     |> push_event("game_started", %{"game" => Map.merge(game, player_data)})
+     |> assign(
+       game: game,
+       players: players,
+       player_id: player_id,
+       playable_cards: playable_cards,
+       can_start_game?: false,
+       can_join_game?: false
+     )}
   end
 
   @impl true
@@ -110,12 +156,16 @@ defmodule GolfWeb.GameLive do
   @impl true
   def handle_event("start_game", _value, socket) do
     user_id = socket.assigns.user.id
+    game = socket.assigns.game
 
-    {:ok, game} = GamesDb.start_game(socket.assigns.game)
-    game = game |> put_user_data(user_id)
-
-    broadcast(game.id, {:game_started, game})
-    {:noreply, assign(socket, game: game, can_start_game?: false)}
+    if user_id == game.host_id do
+      players = socket.assigns.players
+      {:ok, game, players} = GamesDb.start_game(game, players)
+      broadcast(game.id, {:game_started, game, players})
+      {:noreply, assign(socket, game: game, players: players, can_start_game?: false)}
+    else
+      {:noreply, socket}
+    end
   end
 
   @impl true
@@ -130,14 +180,14 @@ defmodule GolfWeb.GameLive do
 
   @impl true
   def handle_event("confirm_join", %{"request_id" => req_id}, socket) do
-    with true <- socket.assigns.user_is_host?,
-         {req_id, _} when is_integer(req_id) <- Integer.parse(req_id),
-         req when is_struct(req) <- GamesDb.get_join_request(req_id),
-         {:ok, game, player} <- GamesDb.confirm_join_request(socket.assigns.game, req) do
-      user_id = socket.assigns.user.id
-      game = game |> put_user_data(user_id)
-      broadcast(game.id, {:player_joined, game, player.id})
-    end
+    # with true <- socket.assigns.user_is_host?,
+    #      {req_id, _} when is_integer(req_id) <- Integer.parse(req_id),
+    #      req when is_struct(req) <- GamesDb.get_join_request(req_id),
+    #      {:ok, game, player} <- GamesDb.confirm_join_request(socket.assigns.game, req) do
+    #   user_id = socket.assigns.user.id
+    #   game = game |> put_user_data(user_id)
+    #   broadcast(game.id, {:player_joined, game, player.id})
+    # end
 
     {:noreply, socket}
   end
@@ -148,19 +198,19 @@ defmodule GolfWeb.GameLive do
         %{"player_id" => player_id, "hand_index" => hand_index},
         socket
       ) do
-    user_id = socket.assigns.user.id
-    game = socket.assigns.game
+    # user_id = socket.assigns.user.id
+    # game = socket.assigns.game
 
-    with {player, _} = Games.get_player(game, player_id),
-         true <- player.user_id == user_id,
-         card <- String.to_existing_atom("hand_#{hand_index}"),
-         true <- Enum.member?(game.playable_cards, card),
-         event <- GameEvent.new(game.id, player.id, :flip, hand_index),
-         {:ok, game, event} <- GamesDb.handle_event(game, event) do
-      game = put_user_data(game, user_id)
-      broadcast(game.id, {:game_event, game, event})
-      {:noreply, assign(socket, game: game)}
-    end
+    # with {player, _} = Games.get_player(game, player_id),
+    #      true <- player.user_id == user_id,
+    #      card <- String.to_existing_atom("hand_#{hand_index}"),
+    #      true <- Enum.member?(game.playable_cards, card),
+    #      event <- GameEvent.new(game.id, player.id, :flip, hand_index),
+    #      {:ok, game, event} <- GamesDb.handle_event(game, event) do
+    #   game = put_user_data(game, user_id)
+    #   broadcast(game.id, {:game_event, game, event})
+    #   {:noreply, assign(socket, game: game)}
+    # end
 
     {:noreply, socket}
   end
@@ -175,28 +225,32 @@ defmodule GolfWeb.GameLive do
     Phoenix.PubSub.broadcast(Golf.PubSub, topic(game_id), msg)
   end
 
-  defp user_is_player?(user_id, players) do
-    Enum.any?(players, fn p -> p.user_id == user_id end)
-  end
+  # defp user_is_playing?(user_id, players) do
+  #   Enum.any?(players, fn {_, p} -> p.user_id == user_id end)
+  # end
 
-  defp put_user_data(game, user_id) do
-    positions = hand_positions(length(game.players))
+  # defp user_is_player?(user_id, players) do
+  #   Enum.any?(players, fn p -> p.user_id == user_id end)
+  # end
 
-    player_index =
-      Enum.find_index(game.players, fn player ->
-        player.user_id == user_id
-      end)
+  # defp put_user_data(game, user_id) do
+  #   positions = hand_positions(length(game.players))
 
-    player = player_index && Enum.at(game.players, player_index)
-    playable_cards = Games.playable_cards(game, player)
+  #   player_index =
+  #     Enum.find_index(game.players, fn player ->
+  #       player.user_id == user_id
+  #     end)
 
-    players =
-      game.players
-      |> maybe_rotate(player_index)
-      |> put_positions_and_scores(positions)
+  #   player = player_index && Enum.at(game.players, player_index)
+  #   playable_cards = Games.playable_cards(game, player)
 
-    %Game{game | players: players, playable_cards: playable_cards}
-  end
+  #   players =
+  #     game.players
+  #     |> maybe_rotate(player_index)
+  #     |> put_positions_and_scores(positions)
+
+  #   %Game{game | players: players, playable_cards: playable_cards}
+  # end
 
   defp hand_positions(num_players) do
     case num_players do
@@ -207,12 +261,10 @@ defmodule GolfWeb.GameLive do
     end
   end
 
-  defp put_positions_and_scores(players, positions) do
-    Enum.zip_with(players, positions, fn player, pos ->
-      player
-      |> Map.put(:position, pos)
-      |> Map.put(:score, Games.score(player.hand))
-    end)
+  defp put_position_and_score(player, position) do
+    player
+    |> Map.put(:position, position)
+    |> Map.put(:score, Games.score(player.hand))
   end
 
   # don't do anything if n is 0 or nil

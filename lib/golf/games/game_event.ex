@@ -15,7 +15,7 @@ defmodule Golf.Games.GameEvent do
     timestamps(updated_at: false)
   end
 
-  def changeset(event, attrs) do
+  def changeset(event, attrs \\ %{}) do
     event
     |> cast(attrs, [:game_id, :player_id, :action, :hand_index])
     |> validate_required([:game_id, :player_id, :action])

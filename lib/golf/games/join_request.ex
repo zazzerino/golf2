@@ -13,7 +13,7 @@ defmodule Golf.Games.JoinRequest do
     timestamps()
   end
 
-  def changeset(join_request, attrs) do
+  def changeset(join_request, attrs \\ %{}) do
     join_request
     |> cast(attrs, [:game_id, :user_id, :confirmed?])
     |> validate_required([:game_id, :user_id, :confirmed?])

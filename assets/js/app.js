@@ -11,7 +11,7 @@ let Hooks = {};
 // matches a path like "/games/12"
 const GAME_URL_REGEX = /\/games\/(\d+)/;
 
-// the elem we'll append the game canvas to
+// selects the elem we'll append the game canvas to
 const GAME_CONTAINER_SELECTOR = "#game-container";
 
 // if we're on a game page, draw the game and setup the GameContainer
@@ -23,25 +23,22 @@ if (location.pathname.match(GAME_URL_REGEX)) {
     mounted() {
       this.handleEvent("game_loaded", data => {
         console.log("game loaded: ", data);
+        const container = document.querySelector(GAME_CONTAINER_SELECTOR);
 
         GameCtx = new GameContext(
-          data.game, 
-          GAME_CONTAINER_SELECTOR,
-          /**
-           * Bind `pushEvent` to the current `this`.
-           * Otherwise, `this` will refer to the GameContext later when we try to use it.
-           */
-          this.pushEvent.bind(this)
+          container,
+          this.pushEvent.bind(this),
+          data.game
         );
 
         if (data.game.status === "init") {
-          GameCtx.tweenDeckFromTop();
+          GameCtx.tweenDeckFromTop().start();
         }
       });
 
       this.handleEvent("game_started", data => {
         console.log("game started: ", data);
-        GameCtx.onGameStart(data.game);
+        GameCtx.onGameStart(data.game, data.players, data.playable_cards);
       });
 
       this.handleEvent("player_joined", data => {
