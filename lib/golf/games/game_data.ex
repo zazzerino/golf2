@@ -1,33 +1,37 @@
-defmodule Golf.Games.ClientData do
+defmodule Golf.Games.GameData do
   @derive {Jason.Encoder,
            only: [:id, :status, :turn, :deck, :table_cards, :players, :player_id, :playable_cards]}
   defstruct [:id, :status, :turn, :deck, :table_cards, :players, :player_id, :playable_cards]
 
-  def from(user_id, game, players) do
-    positions = hand_positions(map_size(players))
-    player_index = Enum.find_index(players, fn {_, p} -> p.user_id == user_id end)
+  def from(user_id, game) do
+    positions = hand_positions(length(game.players))
+    player_index = Enum.find_index(game.players, fn p -> p.user_id == user_id end)
 
     players =
-      players
-      |> Map.values()
+      game.players
       |> maybe_rotate(player_index)
-      |> Enum.with_index()
-      |> Enum.map(fn {player, index} ->
-        player
-        |> Map.put(:position, Enum.at(positions, index))
-        |> Map.put(:score, Golf.Games.score(player.hand))
-      end)
+      |> put_player_data(positions)
 
     player = player_index && List.first(players)
-    playable_cards = Golf.Games.playable_cards(game, player, length(players))
+    playable_cards = Golf.Games.playable_cards(game, player)
 
     fields =
       Map.from_struct(game)
       |> Map.put(:players, players)
-      |> Map.put(:player_id, player.id)
+      |> Map.put(:player_id, player && player.id)
       |> Map.put(:playable_cards, playable_cards)
 
     struct(__MODULE__, fields)
+  end
+
+  defp put_player_data(players, positions) do
+    players
+    |> Enum.with_index()
+    |> Enum.map(fn {player, index} ->
+      player
+      |> Map.put(:position, Enum.at(positions, index))
+      |> Map.put(:score, Golf.Games.score(player.hand))
+    end)
   end
 
   defp hand_positions(num_players) do

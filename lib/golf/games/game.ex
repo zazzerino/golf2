@@ -7,6 +7,9 @@ defmodule Golf.Games.Game do
   schema "games" do
     belongs_to :host, Golf.Users.User
 
+    has_many :players, Golf.Games.Player
+    has_many :events, Golf.Games.GameEvent
+
     field :status, Ecto.Enum, values: @statuses, default: :init
     field :turn, :integer, default: 0
     field :deck, {:array, :string}
@@ -20,12 +23,5 @@ defmodule Golf.Games.Game do
     game
     |> cast(attrs, [:status, :turn, :deck, :table_cards, :deleted?])
     |> validate_required([:status, :turn, :deck, :table_cards, :deleted?])
-  end
-
-  def new(host_id) do
-    %__MODULE__{
-      host_id: host_id,
-      deck: Golf.Games.new_shuffled_deck()
-    }
   end
 end

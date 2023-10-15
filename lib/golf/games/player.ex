@@ -1,7 +1,6 @@
 defmodule Golf.Games.Player do
   use Golf.Schema
   import Ecto.Changeset
-  alias Golf.Users.User
 
   @derive {Jason.Encoder,
            only: [:id, :user_id, :hand, :held_card, :turn, :username, :position, :score]}
@@ -26,13 +25,5 @@ defmodule Golf.Games.Player do
     player
     |> cast(attrs, [:game_id, :user_id, :hand, :held_card, :turn])
     |> validate_required([:game_id, :user_id, :hand, :turn])
-  end
-
-  def new(%User{} = user, turn) do
-    %__MODULE__{
-      user_id: user.id,
-      username: user.username,
-      turn: turn
-    }
   end
 end

@@ -2,9 +2,11 @@ defmodule Golf.Users.User do
   use Golf.Schema
   import Ecto.Changeset
 
+  @default_username "user"
+
   @derive {Jason.Encoder, only: [:id, :username]}
   schema "users" do
-    field :username, :string, default: "user"
+    field :username, :string, default: @default_username
     timestamps()
   end
 

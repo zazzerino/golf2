@@ -2,9 +2,6 @@ import * as PIXI from "pixi.js";
 import * as TWEEN from "@tweenjs/tween.js";
 import { OutlineFilter } from "@pixi/filter-outline";
 
-const GAME_WIDTH = 600;
-const GAME_HEIGHT = 600;
-
 const CARD_SVG_WIDTH = 240;
 const CARD_SVG_HEIGHT = 336;
 
@@ -12,12 +9,18 @@ const CARD_SCALE = 0.25;
 const CARD_WIDTH = CARD_SVG_WIDTH * CARD_SCALE;
 const CARD_HEIGHT = CARD_SVG_HEIGHT * CARD_SCALE;
 
-const DECK_X_INIT = GAME_WIDTH / 2;
-const DECK_X = GAME_WIDTH / 2 - CARD_WIDTH / 2;
-const DECK_Y = GAME_HEIGHT / 2;
+const GAME_WIDTH = 600;
+const GAME_HEIGHT = 600;
 
-const TABLE_CARD_X = GAME_WIDTH / 2 + CARD_WIDTH / 2 + 2;
-const TABLE_CARD_Y = GAME_HEIGHT / 2;
+const CENTER_X = GAME_WIDTH / 2;
+const CENTER_Y = GAME_HEIGHT / 2;
+
+const DECK_X_INIT = CENTER_X;
+const DECK_X = CENTER_X - CARD_WIDTH / 2;
+const DECK_Y = CENTER_Y;
+
+const TABLE_CARD_X = CENTER_X + CARD_WIDTH / 2 + 2;
+const TABLE_CARD_Y = CENTER_Y;
 
 const HAND_SIZE = 6;
 const DOWN_CARD = "2B";
@@ -97,7 +100,7 @@ export class GameContext {
     }
   }
 
-  onPlayerJoin(game, _playerId) {
+  onPlayerJoin(game, _userId) {
     this.game = game;
   }
 
@@ -112,8 +115,8 @@ export class GameContext {
   }
 
   onFlip(event) {
-    const index = event.hand_index;
     const player = this.game.players.find(p => p.id === event.player_id);
+    const index = event.hand_index;
 
     const handSprites = this.sprites.hands[player.position];
     const oldSprite = handSprites[index];
@@ -348,64 +351,64 @@ function handCardCoord(position, index, xPadding = 3, yPadding = 10) {
   if (position === "bottom") {
     switch (index) {
       case 0:
-        x = GAME_WIDTH / 2 - CARD_WIDTH - xPadding;
+        x = CENTER_X - CARD_WIDTH - xPadding;
         y = GAME_HEIGHT - CARD_HEIGHT * 1.5 - yPadding * 1.3;
         break;
 
       case 1:
-        x = GAME_WIDTH / 2;
+        x = CENTER_X;
         y = GAME_HEIGHT - CARD_HEIGHT * 1.5 - yPadding * 1.3;
         break;
 
       case 2:
-        x = GAME_WIDTH / 2 + CARD_WIDTH + xPadding;
+        x = CENTER_X + CARD_WIDTH + xPadding;
         y = GAME_HEIGHT - CARD_HEIGHT * 1.5 - yPadding * 1.3;
         break;
 
       case 3:
-        x = GAME_WIDTH / 2 - CARD_WIDTH - xPadding;
+        x = CENTER_X - CARD_WIDTH - xPadding;
         y = GAME_HEIGHT - CARD_HEIGHT / 2 - yPadding;
         break;
 
       case 4:
-        x = GAME_WIDTH / 2;
+        x = CENTER_X;
         y = GAME_HEIGHT - CARD_HEIGHT / 2 - yPadding;
         break;
 
       case 5:
-        x = GAME_WIDTH / 2 + CARD_WIDTH + xPadding;
+        x = CENTER_X + CARD_WIDTH + xPadding;
         y = GAME_HEIGHT - CARD_HEIGHT / 2 - yPadding;
         break;
     }
   } else if (position === "top") {
     switch (index) {
       case 0:
-        x = GAME_WIDTH / 2 + CARD_WIDTH + xPadding;
+        x = CENTER_X + CARD_WIDTH + xPadding;
         y = CARD_HEIGHT * 1.5 + yPadding * 1.3;
         break;
 
       case 1:
-        x = GAME_WIDTH / 2;
+        x = CENTER_X;
         y = CARD_HEIGHT * 1.5 + yPadding * 1.3;
         break;
 
       case 2:
-        x = GAME_WIDTH / 2 - CARD_WIDTH - xPadding;
+        x = CENTER_X - CARD_WIDTH - xPadding;
         y = CARD_HEIGHT * 1.5 + yPadding * 1.3;
         break;
 
       case 3:
-        x = GAME_WIDTH / 2 + CARD_WIDTH + xPadding;
+        x = CENTER_X + CARD_WIDTH + xPadding;
         y = CARD_HEIGHT / 2 + yPadding;
         break;
 
       case 4:
-        x = GAME_WIDTH / 2;
+        x = CENTER_X;
         y = CARD_HEIGHT / 2 + yPadding;
         break;
 
       case 5:
-        x = GAME_WIDTH / 2 - CARD_WIDTH - xPadding;
+        x = CENTER_X - CARD_WIDTH - xPadding;
         y = CARD_HEIGHT / 2 + yPadding;
         break;
     }
@@ -413,64 +416,64 @@ function handCardCoord(position, index, xPadding = 3, yPadding = 10) {
     switch (index) {
       case 0:
         x = CARD_HEIGHT * 1.5 + yPadding * 1.3;
-        y = GAME_HEIGHT / 2 - CARD_WIDTH - xPadding;
+        y = CENTER_Y - CARD_WIDTH - xPadding;
         break;
 
       case 1:
         x = CARD_HEIGHT * 1.5 + yPadding * 1.3;
-        y = GAME_HEIGHT / 2;
+        y = CENTER_Y;
         break;
 
       case 2:
         x = CARD_HEIGHT * 1.5 + yPadding * 1.3;
-        y = GAME_HEIGHT / 2 + CARD_WIDTH + xPadding;
+        y = CENTER_Y + CARD_WIDTH + xPadding;
         break;
 
       case 3:
         x = CARD_HEIGHT / 2 + yPadding;
-        y = GAME_HEIGHT / 2 - CARD_WIDTH - xPadding;
+        y = CENTER_Y - CARD_WIDTH - xPadding;
         break;
 
       case 4:
         x = CARD_HEIGHT / 2 + yPadding;
-        y = GAME_HEIGHT / 2;
+        y = CENTER_Y;
         break;
 
       case 5:
         x = CARD_HEIGHT / 2 + yPadding;
-        y = GAME_HEIGHT / 2 + CARD_WIDTH + xPadding;
+        y = CENTER_Y + CARD_WIDTH + xPadding;
         break;
     }
   } else if (position === "right") {
     switch (index) {
       case 0:
         x = GAME_WIDTH - CARD_HEIGHT * 1.5 - yPadding * 1.3;
-        y = GAME_HEIGHT / 2 + CARD_WIDTH + xPadding;
+        y = CENTER_Y + CARD_WIDTH + xPadding;
         break;
 
       case 1:
         x = GAME_WIDTH - CARD_HEIGHT * 1.5 - yPadding * 1.3;
-        y = GAME_HEIGHT / 2;
+        y = CENTER_Y;
         break;
 
       case 2:
         x = GAME_WIDTH - CARD_HEIGHT * 1.5 - yPadding * 1.3;
-        y = GAME_HEIGHT / 2 - CARD_WIDTH - xPadding;
+        y = CENTER_Y - CARD_WIDTH - xPadding;
         break;
 
       case 3:
         x = GAME_WIDTH - CARD_HEIGHT / 2 - yPadding;
-        y = GAME_HEIGHT / 2 + CARD_WIDTH + xPadding;
+        y = CENTER_Y + CARD_WIDTH + xPadding;
         break;
 
       case 4:
         x = GAME_WIDTH - CARD_HEIGHT / 2 - yPadding;
-        y = GAME_HEIGHT / 2;
+        y = CENTER_Y;
         break;
 
       case 5:
         x = GAME_WIDTH - CARD_HEIGHT / 2 - yPadding;
-        y = GAME_HEIGHT / 2 - CARD_WIDTH - xPadding;
+        y = CENTER_Y - CARD_WIDTH - xPadding;
         break;
     }
   }
@@ -483,6 +486,6 @@ function toRadians(degrees) {
   return degrees * (Math.PI / 180);
 }
 
-function randRange(min, max) {
-  return Math.floor(Math.random() * (max - min + 1) + min);
-}
+// function randRange(min, max) {
+//   return Math.floor(Math.random() * (max - min + 1) + min);
+// }

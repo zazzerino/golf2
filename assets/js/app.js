@@ -41,7 +41,7 @@ if (location.pathname.match(GAME_URL_REGEX)) {
 
       this.handleEvent("player_joined", data => {
         console.log("player joined: ", data);
-        GameCtx.onPlayerJoin(data.game, data.player_id);
+        GameCtx.onPlayerJoin(data.game, data.user_id);
       });
 
       this.handleEvent("game_event", data => {

@@ -8,51 +8,48 @@ defmodule Golf.GamesDb do
 
   def get_game(game_id) do
     Repo.get(Game, game_id)
+    |> Repo.preload(players: players_query(game_id))
   end
 
   def get_players(game_id) do
     players_query(game_id)
     |> Repo.all()
-    |> Enum.into(%{})
+  end
+
+  defp players_query(game_id) do
+    from p in Player,
+      where: [game_id: ^game_id],
+      join: u in User,
+      on: [id: p.user_id],
+      order_by: p.turn,
+      select: %Player{p | username: u.username}
   end
 
   def create_game(%User{} = host) do
-    game = Game.new(host.id)
-    player = Player.new(host, 0)
-
-    {:ok, %{game: game, player: player}} =
-      Ecto.Multi.new()
-      |> Ecto.Multi.insert(:game, Game.changeset(game))
-      |> Ecto.Multi.insert(:player, fn %{game: game} ->
-        player
-        |> Map.put(:game_id, game.id)
-        |> Player.changeset()
-      end)
-      |> Repo.transaction()
-
-    players = %{player.id => player}
-    {:ok, game, players}
+    Games.create_game(host)
+    |> Game.changeset()
+    |> Repo.insert()
   end
 
-  def start_game(%Game{} = game, players) do
-    {:ok, new_game, new_players} = Games.start_game(game, players)
+  def start_game(%Game{status: :init} = game) do
+    {:ok, new_game} = Games.start_game(game)
     game_changeset = Game.changeset(game, Map.take(new_game, [:status, :deck, :table_cards]))
 
     player_changesets =
-      players
-      |> Enum.map(fn {id, player} ->
-        new_player = Map.get(new_players, id)
+      game.players
+      |> Enum.with_index()
+      |> Enum.map(fn {player, index} ->
+        new_player = Enum.at(new_game.players, index)
         Player.changeset(player, Map.take(new_player, [:hand]))
       end)
 
-    {:ok, %{game: game} = updates} =
+    {:ok, _} =
       Ecto.Multi.new()
       |> Ecto.Multi.update(:game, game_changeset)
       |> update_player_changesets(player_changesets)
       |> Repo.transaction()
 
-    players = reduce_player_updates(updates)
-    {:ok, game, players}
+    {:ok, new_game}
   end
 
   defp update_player_changesets(multi, changesets) do
@@ -63,17 +60,17 @@ defmodule Golf.GamesDb do
 
   # takes the updates from an Ecto.Multi and returns a
   # map %{id => player} of the players who were updated
-  defp reduce_player_updates(updates) do
-    Enum.reduce(updates, %{}, fn {key, val}, acc ->
-      case key do
-        {:player, id} ->
-          Map.put(acc, id, val)
+  # defp reduce_player_updates(updates) do
+  #   Enum.reduce(updates, %{}, fn {key, val}, acc ->
+  #     case key do
+  #       {:player, id} ->
+  #         Map.put(acc, id, val)
 
-        _ ->
-          acc
-      end
-    end)
-  end
+  #       _ ->
+  #         acc
+  #     end
+  #   end)
+  # end
 
   def insert_join_request(%JoinRequest{} = request) do
     Repo.insert(request)
@@ -89,36 +86,28 @@ defmodule Golf.GamesDb do
     |> Repo.all()
   end
 
-  # def confirm_join_request(%Game{} = game, %JoinRequest{} = request) do
-  #   if Enum.any?(game.players, fn p -> p.user_id == request.user_id end) do
-  #     {:error, :already_playing}
-  #   else
-  #     player = %Player{
-  #       game_id: game.id,
-  #       user_id: request.user_id,
-  #       username: request.username,
-  #       turn: length(game.players)
-  #     }
+  def confirm_join_request(%Game{} = game, %JoinRequest{} = request) do
+    if Enum.any?(game.players, fn p -> p.user_id == request.user_id end) do
+      {:error, :already_playing}
+    else
+      player = %Player{
+        game_id: game.id,
+        user_id: request.user_id,
+        username: request.username,
+        turn: length(game.players)
+      }
 
-  #     request_changeset = JoinRequest.changeset(request, %{confirmed?: true})
+      request_changeset = JoinRequest.changeset(request, %{confirmed?: true})
 
-  #     {:ok, %{player: player}} =
-  #       Ecto.Multi.new()
-  #       |> Ecto.Multi.insert(:player, player)
-  #       |> Ecto.Multi.update(:join_request, request_changeset)
-  #       |> Repo.transaction()
+      {:ok, %{player: player}} =
+        Ecto.Multi.new()
+        |> Ecto.Multi.insert(:player, player)
+        |> Ecto.Multi.update(:join_request, request_changeset)
+        |> Repo.transaction()
 
-  #     # {:ok, game} = Games.add_player(game, player)
-  #     {:ok, game, player}
-  #   end
-  # end
-
-  defp players_query(game_id) do
-    from p in Player,
-      where: [game_id: ^game_id],
-      join: u in User,
-      on: [id: p.user_id],
-      select: {p.id, %Player{p | username: u.username}}
+      game = Map.put(game, :players, game.players ++ [player])
+      {:ok, game, request.user_id}
+    end
   end
 
   defp join_request_query(request_id) do
@@ -138,17 +127,23 @@ defmodule Golf.GamesDb do
       select: %JoinRequest{jr | username: u.username}
   end
 
-  def handle_event(%Game{} = game, players, %GameEvent{} = event) do
-    {:ok, new_game, new_players} = Games.handle_event(game, players, event)
+  def handle_event(%Game{} = game, %GameEvent{} = event) do
+    {:ok, new_game} = Games.handle_event(game, event)
 
-    game_changes = Map.take(new_game, [:status, :deck])
-    game_changeset = Game.changeset(game, game_changes)
+    game_changeset =
+      Game.changeset(
+        game,
+        Map.take(new_game, [:status, :deck, :table_cards])
+      )
 
-    player = Map.get(players, event.player_id)
-    new_player = Map.get(new_players, event.player_id)
+    {player, index} = Games.get_player(game.players, event.player_id)
+    new_player = Enum.at(new_game.players, index)
 
-    player_changes = Map.take(new_player, [:hand])
-    player_changeset = Player.changeset(player, player_changes)
+    player_changeset =
+      Player.changeset(
+        player,
+        Map.take(new_player, [:hand, :held_card])
+      )
 
     {:ok, %{event: event}} =
       Ecto.Multi.new()
@@ -157,11 +152,6 @@ defmodule Golf.GamesDb do
       |> Ecto.Multi.insert(:event, event)
       |> Repo.transaction()
 
-    {:ok, new_game, new_players, event}
+    {:ok, new_game, event}
   end
-
-  # def game_exists?(game_id) do
-  #   from(g in Game, where: [id: ^game_id])
-  #   |> Repo.exists?()
-  # end
 end
