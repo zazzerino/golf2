@@ -4,7 +4,7 @@ defmodule GolfWeb.GameLive do
   alias GolfWeb.UserAuth
   alias Golf.GamesDb
   alias Golf.Games
-  alias Golf.Games.{Game, ClientData, GameEvent, JoinRequest}
+  alias Golf.Games.{ClientData, GameEvent}
 
   @impl true
   def mount(%{"game_id" => game_id}, session, socket) do
@@ -101,9 +101,10 @@ defmodule GolfWeb.GameLive do
 
   @impl true
   def handle_info({:requested_join, request}, socket) do
+    requests = GamesDb.get_unconfirmed_join_requests(socket.assigns.game.id)
+
     user_made_request? = request.user_id == socket.assigns.user.id
     can_join_game? = if user_made_request?, do: false, else: socket.assigns.can_join_game?
-    requests = GamesDb.get_unconfirmed_join_requests(socket.assigns.game.id)
 
     {:noreply, assign(socket, join_requests: requests, can_join_game?: can_join_game?)}
   end
@@ -119,13 +120,16 @@ defmodule GolfWeb.GameLive do
   end
 
   @impl true
-  def handle_info({:game_event, game, event}, socket) do
-    IO.inspect(event, label: "GAME EVENT RECV")
+  def handle_info({:game_event, game, players, event}, socket) do
+    user_id = socket.assigns.user.id
+
+    %{playable_cards: playable_cards} =
+      client_data = ClientData.from(user_id, game, players)
 
     {:noreply,
      socket
-     |> push_event("game_event", %{"game" => game, "event" => event})
-     |> assign(game: game)}
+     |> push_event("game_event", %{"game" => client_data, "event" => event})
+     |> assign(game: game, players: players, playable_cards: playable_cards)}
   end
 
   @impl true
@@ -143,29 +147,29 @@ defmodule GolfWeb.GameLive do
     end
   end
 
-  @impl true
-  def handle_event("request_join", _value, socket) do
-    game_id = socket.assigns.game.id
-    request = JoinRequest.new(game_id, socket.assigns.user)
-    {:ok, request} = GamesDb.insert_join_request(request)
+  # @impl true
+  # def handle_event("request_join", _value, socket) do
+  #   game_id = socket.assigns.game.id
+  #   request = JoinRequest.new(game_id, socket.assigns.user)
+  #   {:ok, request} = GamesDb.insert_join_request(request)
 
-    broadcast(game_id, {:requested_join, request})
-    {:noreply, socket}
-  end
+  #   broadcast(game_id, {:requested_join, request})
+  #   {:noreply, socket}
+  # end
 
-  @impl true
-  def handle_event("confirm_join", %{"request_id" => req_id}, socket) do
-    # with true <- socket.assigns.user_is_host?,
-    #      {req_id, _} when is_integer(req_id) <- Integer.parse(req_id),
-    #      req when is_struct(req) <- GamesDb.get_join_request(req_id),
-    #      {:ok, game, player} <- GamesDb.confirm_join_request(socket.assigns.game, req) do
-    #   user_id = socket.assigns.user.id
-    #   game = game |> put_user_data(user_id)
-    #   broadcast(game.id, {:player_joined, game, player.id})
-    # end
+  # @impl true
+  # def handle_event("confirm_join", %{"request_id" => req_id}, socket) do
+  #   # with true <- socket.assigns.user_is_host?,
+  #   #      {req_id, _} when is_integer(req_id) <- Integer.parse(req_id),
+  #   #      req when is_struct(req) <- GamesDb.get_join_request(req_id),
+  #   #      {:ok, game, player} <- GamesDb.confirm_join_request(socket.assigns.game, req) do
+  #   #   user_id = socket.assigns.user.id
+  #   #   game = game |> put_user_data(user_id)
+  #   #   broadcast(game.id, {:player_joined, game, player.id})
+  #   # end
 
-    {:noreply, socket}
-  end
+  #   {:noreply, socket}
+  # end
 
   @impl true
   def handle_event(
@@ -173,21 +177,23 @@ defmodule GolfWeb.GameLive do
         %{"player_id" => player_id, "hand_index" => hand_index},
         socket
       ) do
-    # user_id = socket.assigns.user.id
-    # game = socket.assigns.game
+    user_id = socket.assigns.user.id
+    game = socket.assigns.game
+    players = socket.assigns.players
 
-    # with {player, _} = Games.get_player(game, player_id),
-    #      true <- player.user_id == user_id,
-    #      card <- String.to_existing_atom("hand_#{hand_index}"),
-    #      true <- Enum.member?(game.playable_cards, card),
-    #      event <- GameEvent.new(game.id, player.id, :flip, hand_index),
-    #      {:ok, game, event} <- GamesDb.handle_event(game, event) do
-    #   game = put_user_data(game, user_id)
-    #   broadcast(game.id, {:game_event, game, event})
-    #   {:noreply, assign(socket, game: game)}
-    # end
-
-    {:noreply, socket}
+    with player when is_struct(player) <- Map.get(players, player_id),
+         true <- player.user_id == user_id,
+         card <- String.to_existing_atom("hand_#{hand_index}"),
+         playable_cards = Games.playable_cards(game, player, map_size(players)),
+         true <- Enum.member?(playable_cards, card),
+         event <- GameEvent.new(game.id, player.id, :flip, hand_index),
+         {:ok, game, players, event} <- GamesDb.handle_event(game, players, event) do
+      broadcast(game.id, {:game_event, game, players, event})
+      {:noreply, assign(socket, game: game, players: players)}
+    else
+      _ ->
+        {:noreply, socket}
+    end
   end
 
   defp topic(game_id), do: "game:#{game_id}"

@@ -8,6 +8,9 @@ defmodule Golf.Games do
   @num_decks 2
   @hand_size 6
 
+  defguard is_players_turn(game, player, num_players)
+           when rem(game.turn, num_players) == player.turn
+
   def start_game(%Game{status: :init} = game, players) do
     # deal hands to players
     num_cards_to_deal = @hand_size * map_size(players)
@@ -34,8 +37,28 @@ defmodule Golf.Games do
     {:ok, game, players}
   end
 
+  def handle_event(%Game{status: :flip_2} = game, players, %GameEvent{action: :flip} = event) do
+    player = Map.get(players, event.player_id)
+
+    if num_cards_face_up(player.hand) < 2 do
+      hand = flip_card(player.hand, event.hand_index)
+      players = Map.update!(players, player.id, &Map.put(&1, :hand, hand))
+
+      all_done_flipping? =
+        Enum.all?(players, fn {_, p} ->
+          num_cards_face_up(p.hand) >= 2
+        end)
+
+      status = if all_done_flipping?, do: :take, else: :flip_2
+      game = %Game{game | status: status}
+      {:ok, game, players}
+    else
+      {:ok, game, players}
+    end
+  end
+
   # def handle_event(%Game{status: :flip_2} = game, %GameEvent{action: :flip} = event) do
-  #   {player, index} = get_player(game, event.player_id)
+  #   # {player, index} = get_player(game, event.player_id)
 
   #   if num_cards_face_up(player.hand) < 2 do
   #     players =
@@ -72,11 +95,11 @@ defmodule Golf.Games do
   #   end
   # end
 
-  def get_player(game, player_id) do
-    index = Enum.find_index(game.players, fn p -> p.id == player_id end)
-    player = Enum.at(game.players, index)
-    {player, index}
-  end
+  # def get_player(game, player_id) do
+  #   index = Enum.find_index(game.players, fn p -> p.id == player_id end)
+  #   player = Enum.at(game.players, index)
+  #   {player, index}
+  # end
 
   defp flip_card(hand, index) do
     List.update_at(hand, index, fn card -> Map.put(card, "face_up?", true) end)
@@ -96,7 +119,7 @@ defmodule Golf.Games do
     |> score_ranks(0)
   end
 
-  def playable_cards(%Game{status: :flip2}, %Player{} = player) do
+  def playable_cards(%Game{status: :flip2}, %Player{} = player, _) do
     if num_cards_face_up(player.hand) < 2 do
       face_down_cards(player.hand)
     else
@@ -104,23 +127,26 @@ defmodule Golf.Games do
     end
   end
 
-  # def playable_cards(%Game{} = game, %Player{} = player) when is_players_turn(game, player) do
-  #   case game.status do
-  #     s when s in [:flip_2, :flip] ->
-  #       face_down_cards(player.hand)
+  def playable_cards(%Game{} = game, %Player{} = player, num_players)
+      when is_players_turn(game, player, num_players) do
+    case game.status do
+      s when s in [:flip_2, :flip] ->
+        face_down_cards(player.hand)
 
-  #     s when s in [:take, :last_take] ->
-  #       [:deck, :table]
+      s when s in [:take, :last_take] ->
+        [:deck, :table]
 
-  #     s when s in [:hold, :last_hold] ->
-  #       [:held, :hand_0, :hand_1, :hand_2, :hand_3, :hand_4, :hand_5]
+      s when s in [:hold, :last_hold] ->
+        [:held, :hand_0, :hand_1, :hand_2, :hand_3, :hand_4, :hand_5]
 
-  #     _ ->
-  #       []
-  #   end
-  # end
+      _ ->
+        []
+    end
+  end
 
-  def playable_cards(%Game{}, _), do: []
+  def playable_cards(%Game{}, _, _) do
+    []
+  end
 
   defp new_deck(1), do: @card_names
 
@@ -141,8 +167,8 @@ defmodule Golf.Games do
   end
 
   defp deal_from_deck(deck, n) do
-    {dealt_cards, deck} = Enum.split(deck, n)
-    {:ok, dealt_cards, deck}
+    {cards, deck} = Enum.split(deck, n)
+    {:ok, cards, deck}
   end
 
   defp deal_from_deck(deck) do
@@ -151,11 +177,11 @@ defmodule Golf.Games do
     end
   end
 
-  defp num_cards_face_up(hand) do
+  def num_cards_face_up(hand) do
     Enum.count(hand, fn card -> card["face_up?"] end)
   end
 
-  defp face_down_cards(hand) do
+  def face_down_cards(hand) do
     hand
     |> Enum.with_index()
     |> Enum.reject(fn {card, _} -> card["face_up?"] end)
@@ -232,6 +258,3 @@ defmodule Golf.Games do
     end
   end
 end
-
-# defguard is_players_turn(game, player)
-#          when rem(game.turn, length(game.players)) == player.turn

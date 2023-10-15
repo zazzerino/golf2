@@ -7,21 +7,24 @@ const GAME_HEIGHT = 600;
 
 const CARD_SVG_WIDTH = 240;
 const CARD_SVG_HEIGHT = 336;
-const CARD_SCALE = 0.25;
 
+const CARD_SCALE = 0.25;
 const CARD_WIDTH = CARD_SVG_WIDTH * CARD_SCALE;
 const CARD_HEIGHT = CARD_SVG_HEIGHT * CARD_SCALE;
 
+const DECK_X_INIT = GAME_WIDTH / 2;
+const DECK_X = GAME_WIDTH / 2 - CARD_WIDTH / 2;
 const DECK_Y = GAME_HEIGHT / 2;
 
 const TABLE_CARD_X = GAME_WIDTH / 2 + CARD_WIDTH / 2 + 2;
 const TABLE_CARD_Y = GAME_HEIGHT / 2;
 
+const HAND_SIZE = 6;
 const DOWN_CARD = "2B";
 
 export class GameContext {
   constructor(container, pushEvent, game) {
-    window.gameCtx = this;
+    window.GAMECTX = this;
     this.container = container;
     this.pushEvent = pushEvent;
     this.game = game;
@@ -71,22 +74,27 @@ export class GameContext {
   onGameStart(game) {
     this.game = game;
 
-    this.tweenDeckStart()
-      .onComplete(() => {
-        this.addTableCards();
+    for (const player of this.game.players) {
+      this.addHand(player);
 
-        this.tweenTableDeal()
-          .onComplete(() => {
-            for (const player of this.game.players) {
-              this.addHand(player);
+      this.tweenHandDeal(player.position)
+        .forEach((cardTween, index) => {
+          cardTween.start();
 
-              this.tweenHandDeal(player.position)
-                .forEach(t => t.start());
-            }
-          })
-          .start();
-      })
-      .start();
+          if (index == HAND_SIZE - 1) { // the last card in the hand
+            cardTween.onComplete(() => {
+              this.tweenDeckStart()
+                .onComplete(() => {
+                  this.addTableCards();
+
+                  this.tweenTableDeal()
+                    .start();
+                })
+                .start();
+            });
+          }
+        });
+    }
   }
 
   onPlayerJoin(game, _playerId) {
@@ -116,7 +124,8 @@ export class GameContext {
     const newSprite = makeCardSprite(cardName, coord.x, coord.y);
     this.stage.addChild(newSprite)
 
-    this.tweenWiggle(newSprite, coord.x);
+    this.tweenWiggle(newSprite, coord.x)
+      .start();
 
     for (let i = 0; i < handSprites.length; i++) {
       if (!this.placeIsPlayable(`hand_${i}`)) {
@@ -223,20 +232,18 @@ export class GameContext {
   }
 
   tweenDeckStart() {
-    const toX = deckX(this.game.status);
-
     return new TWEEN.Tween(this.sprites.deck)
-      .to({ x: toX }, 200)
+      .to({ x: DECK_X }, 200)
       .easing(TWEEN.Easing.Quadratic.Out)
   }
 
   tweenTableDeal() {
-    const sprite = this.sprites.tableCards[0];
     const deck = this.sprites.deck;
+    const sprite = this.sprites.tableCards[0];
 
     const toX = sprite.x;
     const toY = sprite.y;
-    
+
     const fromX = deck.x;
     const fromY = deck.y;
 
@@ -258,13 +265,13 @@ export class GameContext {
       const toX = sprite.x;
       const toY = sprite.y;
 
-      sprite.x = this.sprites.deck.x;
-      sprite.y = this.sprites.deck.y;
+      sprite.x = DECK_X_INIT;
+      sprite.y = DECK_Y;
 
       const tween = new TWEEN.Tween(sprite)
-        .to({ x: toX, y: toY }, 1000)
-        .easing(TWEEN.Easing.Quadratic.Out)
-        .delay((5 - i) * 100);
+        .to({ x: toX, y: toY }, 800)
+        .easing(TWEEN.Easing.Cubic.InOut)
+        .delay((HAND_SIZE - 1 - i) * 150);
 
       cardTweens.push(tween);
     }
@@ -272,14 +279,14 @@ export class GameContext {
     return cardTweens;
   }
 
-  tweenWiggle(sprite, toX, distancePx = 2, repeats = 2)  {
+  tweenWiggle(sprite, toX, distancePx = 2, repeats = 2) {
     const tweenReturn = new TWEEN.Tween(sprite)
       .to({ x: toX }, 70)
       .easing(TWEEN.Easing.Quadratic.Out)
 
     sprite.x = toX - distancePx;
 
-    new TWEEN.Tween(sprite)
+    return new TWEEN.Tween(sprite)
       .to({ x: toX + distancePx }, 140)
       .easing(TWEEN.Easing.Quintic.InOut)
       .repeat(repeats)
@@ -297,7 +304,7 @@ export class GameContext {
 function makeCardSprite(cardName, x = 0, y = 0, rotation = 0) {
   const path = `/images/cards/${cardName}.svg`;
   const sprite = PIXI.Sprite.from(path);
-  
+
   sprite.cardName = cardName;
   sprite.scale.set(CARD_SCALE, CARD_SCALE);
   sprite.anchor.set(0.5);
@@ -313,7 +320,7 @@ function makeCardPlayable(sprite, callback) {
   sprite.eventMode = "static";
   sprite.cursor = "pointer";
   sprite.filters = [new OutlineFilter(2, 0xff00ff)];
-  sprite.on("pointerdown", event => callback(event.currentTarget))
+  sprite.on("pointerdown", event => callback(event.currentTarget));
 }
 
 function makeCardUnplayable(sprite) {
@@ -326,9 +333,7 @@ function makeCardUnplayable(sprite) {
 // sprite coords
 
 function deckX(gameStatus) {
-  return gameStatus == "init"
-    ? GAME_WIDTH / 2
-    : GAME_WIDTH / 2 - CARD_WIDTH / 2;
+  return gameStatus == "init" ? DECK_X_INIT : DECK_X;
 }
 
 function handRotation(position) {
@@ -340,7 +345,6 @@ function handRotation(position) {
 function handCardCoord(position, index, xPadding = 3, yPadding = 10) {
   let x = 0, y = 0;
 
-  // terrible
   if (position === "bottom") {
     switch (index) {
       case 0:
@@ -443,7 +447,7 @@ function handCardCoord(position, index, xPadding = 3, yPadding = 10) {
         x = GAME_WIDTH - CARD_HEIGHT * 1.5 - yPadding * 1.3;
         y = GAME_HEIGHT / 2 + CARD_WIDTH + xPadding;
         break;
-      
+
       case 1:
         x = GAME_WIDTH - CARD_HEIGHT * 1.5 - yPadding * 1.3;
         y = GAME_HEIGHT / 2;
@@ -453,12 +457,12 @@ function handCardCoord(position, index, xPadding = 3, yPadding = 10) {
         x = GAME_WIDTH - CARD_HEIGHT * 1.5 - yPadding * 1.3;
         y = GAME_HEIGHT / 2 - CARD_WIDTH - xPadding;
         break;
-      
+
       case 3:
         x = GAME_WIDTH - CARD_HEIGHT / 2 - yPadding;
         y = GAME_HEIGHT / 2 + CARD_WIDTH + xPadding;
         break;
-      
+
       case 4:
         x = GAME_WIDTH - CARD_HEIGHT / 2 - yPadding;
         y = GAME_HEIGHT / 2;

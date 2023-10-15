@@ -12,11 +12,9 @@ let Hooks = {};
 const GAME_URL_REGEX = /\/games\/(\d+)/;
 
 // selects the elem we'll append the game canvas to
-const GAME_CONTAINER_SELECTOR = "#game-container";
 
 // if we're on a game page, draw the game and setup the GameContainer
 if (location.pathname.match(GAME_URL_REGEX)) {
-  const container = document.querySelector(GAME_CONTAINER_SELECTOR);
   let GameCtx;
 
   // the <div> this connects to is in `game_live.html.heex`
@@ -26,14 +24,13 @@ if (location.pathname.match(GAME_URL_REGEX)) {
         console.log("game loaded: ", data);
 
         GameCtx = new GameContext(
-          container,
-          this.pushEvent.bind(this),
+          document.querySelector("#game-container"), // div we'll append our game canvas to
+          this.pushEvent.bind(this), // how we'll send messages to the server
           data.game
         );
 
         if (data.game.status === "init") {
-          GameCtx.tweenDeckFromTop()
-            .start();
+          GameCtx.tweenDeckFromTop().start();
         }
       });
 

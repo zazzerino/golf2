@@ -89,29 +89,29 @@ defmodule Golf.GamesDb do
     |> Repo.all()
   end
 
-  def confirm_join_request(%Game{} = game, %JoinRequest{} = request) do
-    if Enum.any?(game.players, fn p -> p.user_id == request.user_id end) do
-      {:error, :already_playing}
-    else
-      player = %Player{
-        game_id: game.id,
-        user_id: request.user_id,
-        username: request.username,
-        turn: length(game.players)
-      }
+  # def confirm_join_request(%Game{} = game, %JoinRequest{} = request) do
+  #   if Enum.any?(game.players, fn p -> p.user_id == request.user_id end) do
+  #     {:error, :already_playing}
+  #   else
+  #     player = %Player{
+  #       game_id: game.id,
+  #       user_id: request.user_id,
+  #       username: request.username,
+  #       turn: length(game.players)
+  #     }
 
-      request_changeset = JoinRequest.changeset(request, %{confirmed?: true})
+  #     request_changeset = JoinRequest.changeset(request, %{confirmed?: true})
 
-      {:ok, %{player: player}} =
-        Ecto.Multi.new()
-        |> Ecto.Multi.insert(:player, player)
-        |> Ecto.Multi.update(:join_request, request_changeset)
-        |> Repo.transaction()
+  #     {:ok, %{player: player}} =
+  #       Ecto.Multi.new()
+  #       |> Ecto.Multi.insert(:player, player)
+  #       |> Ecto.Multi.update(:join_request, request_changeset)
+  #       |> Repo.transaction()
 
-      # {:ok, game} = Games.add_player(game, player)
-      {:ok, game, player}
-    end
-  end
+  #     # {:ok, game} = Games.add_player(game, player)
+  #     {:ok, game, player}
+  #   end
+  # end
 
   defp players_query(game_id) do
     from p in Player,
@@ -138,14 +138,14 @@ defmodule Golf.GamesDb do
       select: %JoinRequest{jr | username: u.username}
   end
 
-  def handle_event(%Game{} = game, %GameEvent{} = event) do
-    {:ok, new_game} = Games.handle_event(game, event)
+  def handle_event(%Game{} = game, players, %GameEvent{} = event) do
+    {:ok, new_game, new_players} = Games.handle_event(game, players, event)
 
     game_changes = Map.take(new_game, [:status, :deck])
     game_changeset = Game.changeset(game, game_changes)
 
-    {player, _} = Games.get_player(game, event.player_id)
-    {new_player, _} = Games.get_player(new_game, event.player_id)
+    player = Map.get(players, event.player_id)
+    new_player = Map.get(new_players, event.player_id)
 
     player_changes = Map.take(new_player, [:hand])
     player_changeset = Player.changeset(player, player_changes)
@@ -157,7 +157,7 @@ defmodule Golf.GamesDb do
       |> Ecto.Multi.insert(:event, event)
       |> Repo.transaction()
 
-    {:ok, new_game, event}
+    {:ok, new_game, new_players, event}
   end
 
   # def game_exists?(game_id) do

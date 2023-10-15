@@ -2,9 +2,9 @@
   Game <%= @game_id %>
 </h2>
 
-<div id="game-container" class="mb-4" phx-hook="GameContainer" phx-update="ignore"></div>
+<div id="game-container" phx-hook="GameContainer" phx-update="ignore"></div>
 
-<div>
+<div class="mt-4">
   <.button :if={@can_start_game?} phx-click="start_game">
     Start Game
   </.button>

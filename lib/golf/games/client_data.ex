@@ -1,5 +1,6 @@
 defmodule Golf.Games.ClientData do
-  @derive Jason.Encoder
+  @derive {Jason.Encoder,
+           only: [:id, :status, :turn, :deck, :table_cards, :players, :player_id, :playable_cards]}
   defstruct [:id, :status, :turn, :deck, :table_cards, :players, :player_id, :playable_cards]
 
   def from(user_id, game, players) do
@@ -11,17 +12,17 @@ defmodule Golf.Games.ClientData do
       |> Map.values()
       |> maybe_rotate(player_index)
       |> Enum.with_index()
-      |> Enum.map(fn {p, index} ->
-        pos = Enum.at(positions, index)
-        put_position_and_score(p, pos)
+      |> Enum.map(fn {player, index} ->
+        player
+        |> Map.put(:position, Enum.at(positions, index))
+        |> Map.put(:score, Golf.Games.score(player.hand))
       end)
 
     player = player_index && List.first(players)
-    playable_cards = Golf.Games.playable_cards(game, player)
+    playable_cards = Golf.Games.playable_cards(game, player, length(players))
 
     fields =
-      game
-      |> Map.from_struct()
+      Map.from_struct(game)
       |> Map.put(:players, players)
       |> Map.put(:player_id, player.id)
       |> Map.put(:playable_cards, playable_cards)
@@ -36,12 +37,6 @@ defmodule Golf.Games.ClientData do
       3 -> ~w(bottom left right)
       4 -> ~w(bottom left top right)
     end
-  end
-
-  defp put_position_and_score(player, position) do
-    player
-    |> Map.put(:position, position)
-    |> Map.put(:score, Golf.Games.score(player.hand))
   end
 
   # don't do anything if n is 0 or nil
