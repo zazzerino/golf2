@@ -11,11 +11,6 @@ defmodule Golf.GamesDb do
     |> Repo.preload(players: players_query(game_id))
   end
 
-  def get_players(game_id) do
-    players_query(game_id)
-    |> Repo.all()
-  end
-
   defp players_query(game_id) do
     from p in Player,
       where: [game_id: ^game_id],
@@ -57,20 +52,6 @@ defmodule Golf.GamesDb do
       Ecto.Multi.update(multi, {:player, cs.data.id}, cs)
     end)
   end
-
-  # takes the updates from an Ecto.Multi and returns a
-  # map %{id => player} of the players who were updated
-  # defp reduce_player_updates(updates) do
-  #   Enum.reduce(updates, %{}, fn {key, val}, acc ->
-  #     case key do
-  #       {:player, id} ->
-  #         Map.put(acc, id, val)
-
-  #       _ ->
-  #         acc
-  #     end
-  #   end)
-  # end
 
   def insert_join_request(%JoinRequest{} = request) do
     Repo.insert(request)
@@ -155,3 +136,22 @@ defmodule Golf.GamesDb do
     {:ok, new_game, event}
   end
 end
+
+# def get_players(game_id) do
+#   players_query(game_id)
+#   |> Repo.all()
+# end
+
+# takes the updates from an Ecto.Multi and returns a
+# map %{id => player} of the players who were updated
+# defp reduce_player_updates(updates) do
+#   Enum.reduce(updates, %{}, fn {key, val}, acc ->
+#     case key do
+#       {:player, id} ->
+#         Map.put(acc, id, val)
+
+#       _ ->
+#         acc
+#     end
+#   end)
+# end

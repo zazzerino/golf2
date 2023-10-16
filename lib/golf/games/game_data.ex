@@ -13,12 +13,14 @@ defmodule Golf.Games.GameData do
       |> put_player_data(positions)
 
     player = player_index && List.first(players)
+    player_id = player && player.id
+
     playable_cards = Golf.Games.playable_cards(game, player)
 
     fields =
       Map.from_struct(game)
       |> Map.put(:players, players)
-      |> Map.put(:player_id, player && player.id)
+      |> Map.put(:player_id, player_id)
       |> Map.put(:playable_cards, playable_cards)
 
     struct(__MODULE__, fields)

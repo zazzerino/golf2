@@ -31,6 +31,8 @@ export class GameContext {
     this.pushEvent = pushEvent;
     this.game = game;
 
+    window.GAMECTX = this;
+
     this.stage = new PIXI.Container();
 
     this.renderer = new PIXI.Renderer({
@@ -149,13 +151,12 @@ export class GameContext {
   // events from client
 
   onHandClick(player_id, hand_index) {
-    if (this.player_id = player_id) {
-      this.pushEvent("hand_click", { player_id, hand_index });
-    }
+    this.pushEvent("hand_click", { player_id, hand_index });
   }
 
   onDeckClick() {
-    this.pushEvent("deck_click", { player_id: this.player_id });
+    const player_id = this.game.player_id;
+    this.pushEvent("deck_click", { player_id });
   }
 
   onTableClick() {
@@ -170,7 +171,7 @@ export class GameContext {
     sprite.place = "deck";
 
     if (this.placeIsPlayable("deck")) {
-      makeCardPlayable(sprite, this.onDeckClick);
+      makeCardPlayable(sprite, this.onDeckClick.bind(this));
     }
 
     this.sprites.deck = sprite;

@@ -104,7 +104,7 @@ defmodule Golf.Games do
 
   def playable_cards(%Game{} = game, %Player{} = player) when is_players_turn(game, player) do
     case game.status do
-      s when s in [:flip] ->
+      :flip ->
         face_down_cards(player.hand)
 
       s when s in [:take, :last_take] ->
@@ -156,7 +156,9 @@ defmodule Golf.Games do
   end
 
   defp flip_card(hand, index) do
-    List.update_at(hand, index, fn card -> Map.put(card, "face_up?", true) end)
+    List.update_at(hand, index, fn card ->
+      Map.put(card, "face_up?", true)
+    end)
   end
 
   # defp flip_all(hand) do
