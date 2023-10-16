@@ -53,6 +53,34 @@ defmodule Golf.GamesDb do
     end)
   end
 
+  def handle_event(%Game{} = game, %GameEvent{} = event) do
+    {:ok, new_game} = Games.handle_event(game, event)
+
+    game_changeset =
+      Game.changeset(
+        game,
+        Map.take(new_game, [:status, :turn, :deck, :table_cards])
+      )
+
+    {player, index} = Games.get_player(game.players, event.player_id)
+    new_player = Enum.at(new_game.players, index)
+
+    player_changeset =
+      Player.changeset(
+        player,
+        Map.take(new_player, [:hand, :held_card])
+      )
+
+    {:ok, %{event: event}} =
+      Ecto.Multi.new()
+      |> Ecto.Multi.update(:game, game_changeset)
+      |> Ecto.Multi.update(:player, player_changeset)
+      |> Ecto.Multi.insert(:event, event)
+      |> Repo.transaction()
+
+    {:ok, new_game, event}
+  end
+
   def insert_join_request(%JoinRequest{} = request) do
     Repo.insert(request)
   end
@@ -106,34 +134,6 @@ defmodule Golf.GamesDb do
       on: [id: jr.user_id],
       order_by: jr.inserted_at,
       select: %JoinRequest{jr | username: u.username}
-  end
-
-  def handle_event(%Game{} = game, %GameEvent{} = event) do
-    {:ok, new_game} = Games.handle_event(game, event)
-
-    game_changeset =
-      Game.changeset(
-        game,
-        Map.take(new_game, [:status, :turn, :deck, :table_cards])
-      )
-
-    {player, index} = Games.get_player(game.players, event.player_id)
-    new_player = Enum.at(new_game.players, index)
-
-    player_changeset =
-      Player.changeset(
-        player,
-        Map.take(new_player, [:hand, :held_card])
-      )
-
-    {:ok, %{event: event}} =
-      Ecto.Multi.new()
-      |> Ecto.Multi.update(:game, game_changeset)
-      |> Ecto.Multi.update(:player, player_changeset)
-      |> Ecto.Multi.insert(:event, event)
-      |> Repo.transaction()
-
-    {:ok, new_game, event}
   end
 end
 

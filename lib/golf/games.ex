@@ -47,7 +47,8 @@ defmodule Golf.Games do
     {:ok, card, deck} = deal_from_deck(deck)
     table_cards = [card | game.table_cards]
 
-    {:ok, %Game{game | status: :flip_2, deck: deck, table_cards: table_cards, players: players}}
+    game = %Game{game | status: :flip_2, deck: deck, table_cards: table_cards, players: players}
+    {:ok, game}
   end
 
   def get_player(players, player_id) do
@@ -69,9 +70,10 @@ defmodule Golf.Games do
         end)
 
       status = if all_done_flipping?, do: :take, else: :flip_2
-      {:ok, %Game{game | status: status, players: players}}
-    else
+      game = %Game{game | status: status, players: players}
       {:ok, game}
+    else
+      {:error, :already_flipped}
     end
   end
 
@@ -92,6 +94,21 @@ defmodule Golf.Games do
     {player, index} = get_player(game.players, event.player_id)
 
     if is_players_turn(game, player) do
+      card = player.held_card
+      table_cards = [card | game.table_cards]
+
+      {status, turn} =
+        if num_cards_face_up(player.hand) == 5 do
+          {:take, game.turn + 1}
+        else
+          {:flip, game.turn}
+        end
+
+      players = List.update_at(game.players, index, &Map.put(&1, :held_card, nil))
+      game = %Game{game | status: status, turn: turn, table_cards: table_cards, players: players}
+      {:ok, game}
+    else
+      {:error, :not_players_turn}
     end
   end
 

@@ -175,7 +175,8 @@ defmodule GolfWeb.GameLive do
       ) do
     with true <- player_id == socket.assigns.player_id,
          game <- socket.assigns.game,
-         event <- GameEvent.new(game.id, player_id, :flip, hand_index),
+         action <- hand_action(game.status),
+         event <- GameEvent.new(game.id, player_id, action, hand_index),
          {:ok, game, event} <- GamesDb.handle_event(game, event),
          :ok <- broadcast(game.id, {:game_event, game, event}) do
       {:noreply, assign(socket, game: game)}
@@ -197,6 +198,21 @@ defmodule GolfWeb.GameLive do
     end
   end
 
+  @impl true
+  def handle_event(
+        "held_click",
+        %{"player_id" => player_id},
+        socket
+      ) do
+    with true <- player_id == socket.assigns.player_id,
+         game <- socket.assigns.game,
+         event <- GameEvent.new(game.id, player_id, :discard),
+         {:ok, game, event} <- GamesDb.handle_event(game, event),
+         :ok <- broadcast(game.id, {:game_event, game, event}) do
+      {:noreply, assign(socket, game: game)}
+    end
+  end
+
   defp topic(game_id), do: "game:#{game_id}"
 
   defp subscribe(topic) do
@@ -206,4 +222,7 @@ defmodule GolfWeb.GameLive do
   defp broadcast(game_id, msg) do
     Phoenix.PubSub.broadcast(Golf.PubSub, topic(game_id), msg)
   end
+
+  defp hand_action(status) when status in [:flip_2, :flip], do: :flip
+  defp hand_action(:hold), do: :swap
 end

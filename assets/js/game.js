@@ -82,6 +82,8 @@ export class GameContext {
 
   onGameStart(game) {
     this.game = game;
+
+    const lastCardIndex = HAND_SIZE - 1;
     const lastPlayerIndex = this.game.players.length - 1;
 
     this.game.players.forEach((player, playerIndex) => {
@@ -91,13 +93,15 @@ export class GameContext {
         .forEach((cardTween, cardIndex) => {
           cardTween.start();
 
-          if (cardIndex == HAND_SIZE - 1
+          if (cardIndex == lastCardIndex
             && playerIndex == lastPlayerIndex) {
             cardTween.onComplete(() => {
               this.tweenDeckStart()
                 .onComplete(() => {
                   this.addTableCards();
-                  this.tweenTableDeal().start();
+
+                  this.tweenTableDeal()
+                    .start();
                 })
                 .start();
             });
@@ -120,6 +124,10 @@ export class GameContext {
 
       case "take_from_deck":
         this.onTakeFromDeck(event);
+        break;
+
+      case "discard":
+        this.onDiscard(event);
         break;
     }
   }
@@ -149,11 +157,11 @@ export class GameContext {
     }
 
     const deckSprite = this.sprites.deck;
-    
+
     if (deckSprite && this.placeIsPlayable("deck")) {
       makeCardPlayable(deckSprite, this.onDeckClick.bind(this));
     }
-    
+
     const tableSprite = this.sprites.tableCards[0];
 
     if (tableSprite && this.placeIsPlayable("table")) {
@@ -175,15 +183,15 @@ export class GameContext {
     heldSprite.x = this.sprites.deck.x;
     heldSprite.y = this.sprites.deck.y;
 
-    new TWEEN.Tween(heldSprite)
-      .to({ x: toX, y: toY }, 800)
-      .easing(TWEEN.Easing.Quadratic.InOut)
-      .delay(200)
+    const tweenToHeld = new TWEEN.Tween(heldSprite)
+      .to({ x: toX, y: toY }, 700)
+      .easing(TWEEN.Easing.Quadratic.InOut);
+
+    this.tweenWiggle(heldSprite, this.sprites.deck.x)
+      .chain(tweenToHeld)
       .start();
 
     if (this.game.player_id == player.id) {
-      makeCardPlayable(heldSprite, () => this.onHeldClick.bind(this));
-
       makeCardUnplayable(this.sprites.deck);
       makeCardUnplayable(this.sprites.tableCards[0]);
 
@@ -193,6 +201,35 @@ export class GameContext {
         makeCardPlayable(handSprites[i], () => this.onHandClick(player.id, i))
       }
     }
+  }
+
+  onDiscard(event) {
+    const player = this.game.players.find(p => p.id === event.player_id);
+
+    this.addTableCards();
+    const tableSprite = this.sprites.tableCards[0];
+
+    const heldSprite = this.sprites.heldCard;
+    heldSprite.visible = false;
+
+    const toX = tableSprite.x;
+    const toY = tableSprite.y;
+
+    tableSprite.x = heldSprite.x;
+    tableSprite.y = heldSprite.y;
+
+    const handSprites = this.sprites.hands[player.position];
+
+    for (let i = 0; i < handSprites.length; i++) {
+      if (!this.placeIsPlayable(`hand_${i}`)) {
+        makeCardUnplayable(handSprites[i]);
+      }
+    }
+
+    new TWEEN.Tween(tableSprite)
+      .to({ x: toX, y: toY }, 600)
+      .easing(TWEEN.Easing.Quadratic.InOut)
+      .start();
   }
 
   // events from client
@@ -211,7 +248,8 @@ export class GameContext {
   }
 
   onHeldClick() {
-    console.log("held clicked");
+    const player_id = this.game.player_id;
+    this.pushEvent("held_click", { player_id });
   }
 
   // deck
@@ -235,8 +273,8 @@ export class GameContext {
     const card0 = this.game.table_cards[0];
     const card1 = this.game.table_cards[1];
 
-    if (card0) this.addTableCard(card0);
     if (card1) this.addTableCard(card1);
+    if (card0) this.addTableCard(card0);
   }
 
   addTableCard(name) {
@@ -247,7 +285,7 @@ export class GameContext {
       makeCardPlayable(sprite, this.onTableClick.bind(this));
     }
 
-    this.sprites.tableCards.push(sprite);
+    this.sprites.tableCards.unshift(sprite);
     this.stage.addChild(sprite);
   }
 
@@ -280,6 +318,10 @@ export class GameContext {
     const coord = heldCardCoord(player.position);
     const sprite = makeCardSprite(player.held_card, coord.x, coord.y, coord.rotation);
     sprite.place = "held";
+
+    if (this.placeIsPlayable("held")) {
+      makeCardPlayable(sprite, this.onHeldClick.bind(this));
+    }
 
     this.sprites.heldCard = sprite;
     this.stage.addChild(sprite);
@@ -337,7 +379,7 @@ export class GameContext {
       sprite.y = DECK_Y;
 
       const tween = new TWEEN.Tween(sprite)
-        .to({ x: toX, y: toY }, 800)
+        .to({ x: toX, y: toY, rotation: toRadians(180) }, 800)
         .easing(TWEEN.Easing.Cubic.InOut)
         .delay((HAND_SIZE - 1 - i) * 150);
 
@@ -347,15 +389,15 @@ export class GameContext {
     return cardTweens;
   }
 
-  tweenWiggle(sprite, toX, distancePx = 2, repeats = 2) {
+  tweenWiggle(sprite, toX, distancePx = 1, repeats = 2) {
     const tweenReturn = new TWEEN.Tween(sprite)
-      .to({ x: toX }, 70)
+      .to({ x: toX }, 50)
       .easing(TWEEN.Easing.Quadratic.Out)
 
     sprite.x = toX - distancePx;
 
     return new TWEEN.Tween(sprite)
-      .to({ x: toX + distancePx }, 140)
+      .to({ x: toX + distancePx }, 100)
       .easing(TWEEN.Easing.Quintic.InOut)
       .repeat(repeats)
       .yoyo(true)
@@ -371,7 +413,8 @@ export class GameContext {
 
 function makeCardSprite(cardName, x = 0, y = 0, rotation = 0) {
   const path = `/images/cards/${cardName}.svg`;
-  const sprite = PIXI.Sprite.from(path);
+  const texture = PIXI.Texture.from(path);
+  const sprite = PIXI.Sprite.from(texture);
 
   sprite.cardName = cardName;
   sprite.scale.set(CARD_SCALE, CARD_SCALE);
@@ -384,7 +427,7 @@ function makeCardSprite(cardName, x = 0, y = 0, rotation = 0) {
   return sprite;
 }
 
-const OUTLINE_FILTER = new OutlineFilter(2, 0xff00ff); 
+const OUTLINE_FILTER = new OutlineFilter(2, 0xff00ff);
 
 function makeCardPlayable(sprite, callback) {
   sprite.eventMode = "static";
@@ -436,7 +479,7 @@ function heldCardCoord(position, xPadding = HAND_X_PADDING, yPadding = HAND_Y_PA
       y = CENTER_Y - CARD_WIDTH * 2.5
       break;
   }
-  
+
   const rotation = handRotation(position);
   return { x, y, rotation }
 }
