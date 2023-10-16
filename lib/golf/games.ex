@@ -56,10 +56,7 @@ defmodule Golf.Games do
     {player, index}
   end
 
-  def handle_event(
-        %Game{status: :flip_2} = game,
-        %GameEvent{action: :flip} = event
-      ) do
+  def handle_event(%Game{status: :flip_2} = game, %GameEvent{action: :flip} = event) do
     {player, index} = get_player(game.players, event.player_id)
 
     if num_cards_face_up(player.hand) < 2 do
@@ -78,10 +75,7 @@ defmodule Golf.Games do
     end
   end
 
-  def handle_event(
-        %Game{status: :take} = game,
-        %GameEvent{action: :take_from_deck} = event
-      ) do
+  def handle_event(%Game{status: :take} = game, %GameEvent{action: :take_from_deck} = event) do
     {player, index} = get_player(game.players, event.player_id)
 
     if is_players_turn(game, player) do
@@ -91,6 +85,13 @@ defmodule Golf.Games do
       {:ok, game}
     else
       {:error, :not_players_turn}
+    end
+  end
+
+  def handle_event(%Game{status: :hold} = game, %GameEvent{action: :discard} = event) do
+    {player, index} = get_player(game.players, event.player_id)
+
+    if is_players_turn(game, player) do
     end
   end
 

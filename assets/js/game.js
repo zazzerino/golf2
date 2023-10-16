@@ -2,6 +2,12 @@ import * as PIXI from "pixi.js";
 import * as TWEEN from "@tweenjs/tween.js";
 import { OutlineFilter } from "@pixi/filter-outline";
 
+const GAME_WIDTH = 600;
+const GAME_HEIGHT = 600;
+
+const CENTER_X = GAME_WIDTH / 2;
+const CENTER_Y = GAME_HEIGHT / 2;
+
 const CARD_SVG_WIDTH = 240;
 const CARD_SVG_HEIGHT = 336;
 
@@ -9,18 +15,15 @@ const CARD_SCALE = 0.25;
 const CARD_WIDTH = CARD_SVG_WIDTH * CARD_SCALE;
 const CARD_HEIGHT = CARD_SVG_HEIGHT * CARD_SCALE;
 
-const GAME_WIDTH = 600;
-const GAME_HEIGHT = 600;
-
-const CENTER_X = GAME_WIDTH / 2;
-const CENTER_Y = GAME_HEIGHT / 2;
-
 const DECK_X_INIT = CENTER_X;
 const DECK_X = CENTER_X - CARD_WIDTH / 2;
 const DECK_Y = CENTER_Y;
 
 const TABLE_CARD_X = CENTER_X + CARD_WIDTH / 2 + 2;
 const TABLE_CARD_Y = CENTER_Y;
+
+const HAND_X_PADDING = 3;
+const HAND_Y_PADDING = 10;
 
 const HAND_SIZE = 6;
 const DOWN_CARD = "2B";
@@ -30,8 +33,6 @@ export class GameContext {
     this.container = container;
     this.pushEvent = pushEvent;
     this.game = game;
-
-    window.GAMECTX = this;
 
     this.stage = new PIXI.Container();
 
@@ -69,6 +70,10 @@ export class GameContext {
 
       for (const player of this.game.players) {
         this.addHand(player);
+
+        if (player.held_card) {
+          this.addHeldCard(player);
+        }
       }
     }
   }
@@ -112,6 +117,10 @@ export class GameContext {
       case "flip":
         this.onFlip(event);
         break;
+
+      case "take_from_deck":
+        this.onTakeFromDeck(event);
+        break;
     }
   }
 
@@ -126,6 +135,8 @@ export class GameContext {
     const coord = handCardCoord(player.position, index);
 
     const newSprite = makeCardSprite(cardName, coord.x, coord.y);
+
+    this.sprites.hands[player.position][index] = newSprite;
     this.stage.addChild(newSprite)
 
     this.tweenWiggle(newSprite, coord.x)
@@ -137,15 +148,51 @@ export class GameContext {
       }
     }
 
-    if (this.placeIsPlayable("deck")) {
-      makeCardPlayable(this.sprites.deck, this.onDeckClick);
+    const deckSprite = this.sprites.deck;
+    
+    if (deckSprite && this.placeIsPlayable("deck")) {
+      makeCardPlayable(deckSprite, this.onDeckClick.bind(this));
     }
+    
+    const tableSprite = this.sprites.tableCards[0];
 
-    if (this.placeIsPlayable("table")) {
-      makeCardPlayable(this.sprites.tableCards[0], this.onTableClick);
+    if (tableSprite && this.placeIsPlayable("table")) {
+      makeCardPlayable(tableSprite, this.onTableClick.bind(this));
     }
 
     setTimeout(() => { oldSprite.visible = false }, 200);
+  }
+
+  onTakeFromDeck(event) {
+    const player = this.game.players.find(p => p.id === event.player_id);
+    this.addHeldCard(player);
+
+    const heldSprite = this.sprites.heldCard;
+
+    const toX = heldSprite.x;
+    const toY = heldSprite.y;
+
+    heldSprite.x = this.sprites.deck.x;
+    heldSprite.y = this.sprites.deck.y;
+
+    new TWEEN.Tween(heldSprite)
+      .to({ x: toX, y: toY }, 800)
+      .easing(TWEEN.Easing.Quadratic.InOut)
+      .delay(200)
+      .start();
+
+    if (this.game.player_id == player.id) {
+      makeCardPlayable(heldSprite, () => this.onHeldClick.bind(this));
+
+      makeCardUnplayable(this.sprites.deck);
+      makeCardUnplayable(this.sprites.tableCards[0]);
+
+      const handSprites = this.sprites.hands[player.position];
+
+      for (let i = 0; i < handSprites.length; i++) {
+        makeCardPlayable(handSprites[i], () => this.onHandClick(player.id, i))
+      }
+    }
   }
 
   // events from client
@@ -161,6 +208,10 @@ export class GameContext {
 
   onTableClick() {
     console.log("table clicked");
+  }
+
+  onHeldClick() {
+    console.log("held clicked");
   }
 
   // deck
@@ -193,7 +244,7 @@ export class GameContext {
     sprite.place = "table";
 
     if (this.placeIsPlayable("table")) {
-      makeCardPlayable(sprite, this.onTableClick);
+      makeCardPlayable(sprite, this.onTableClick.bind(this));
     }
 
     this.sprites.tableCards.push(sprite);
@@ -221,6 +272,17 @@ export class GameContext {
       this.sprites.hands[player.position][i] = sprite;
       this.stage.addChild(sprite);
     }
+  }
+
+  // held card
+
+  addHeldCard(player) {
+    const coord = heldCardCoord(player.position);
+    const sprite = makeCardSprite(player.held_card, coord.x, coord.y, coord.rotation);
+    sprite.place = "held";
+
+    this.sprites.heldCard = sprite;
+    this.stage.addChild(sprite);
   }
 
   // tweens
@@ -322,10 +384,12 @@ function makeCardSprite(cardName, x = 0, y = 0, rotation = 0) {
   return sprite;
 }
 
+const OUTLINE_FILTER = new OutlineFilter(2, 0xff00ff); 
+
 function makeCardPlayable(sprite, callback) {
   sprite.eventMode = "static";
   sprite.cursor = "pointer";
-  sprite.filters = [new OutlineFilter(2, 0xff00ff)];
+  sprite.filters = [OUTLINE_FILTER];
   sprite.on("pointerdown", event => callback(event.currentTarget));
 }
 
@@ -348,7 +412,36 @@ function handRotation(position) {
     : 0;
 }
 
-function handCardCoord(position, index, xPadding = 3, yPadding = 10) {
+function heldCardCoord(position, xPadding = HAND_X_PADDING, yPadding = HAND_Y_PADDING) {
+  let x, y;
+
+  switch (position) {
+    case "bottom":
+      x = CENTER_X + CARD_WIDTH * 2.5;
+      y = GAME_HEIGHT - CARD_HEIGHT - yPadding;
+      break;
+
+    case "left":
+      x = CARD_HEIGHT + yPadding;
+      y = CENTER_Y + CARD_WIDTH * 2.5;
+      break;
+
+    case "top":
+      x = CENTER_X - CARD_WIDTH * 2.5;
+      y = CARD_HEIGHT + yPadding;
+      break;
+
+    case "right":
+      x = GAME_WIDTH - CARD_HEIGHT - yPadding;
+      y = CENTER_Y - CARD_WIDTH * 2.5
+      break;
+  }
+  
+  const rotation = handRotation(position);
+  return { x, y, rotation }
+}
+
+function handCardCoord(position, index, xPadding = HAND_X_PADDING, yPadding = HAND_Y_PADDING) {
   let x = 0, y = 0;
 
   if (position === "bottom") {

@@ -44,6 +44,7 @@ defmodule GolfWeb.GameLive do
       game_is_init? = game.status == :init
       user_is_host? = game.host_id == user_id
       can_start_game? = game_is_init? and user_is_host?
+      user_is_playing? = is_integer(player_id)
 
       join_requests =
         if game_is_init? do
@@ -53,7 +54,7 @@ defmodule GolfWeb.GameLive do
       has_requested_join? =
         join_requests && Enum.any?(join_requests, fn req -> req.user_id == user_id end)
 
-      can_join_game? = game_is_init? and not has_requested_join? and not is_integer(player_id)
+      can_join_game? = game_is_init? and not has_requested_join? and not user_is_playing?
 
       {:noreply,
        socket
