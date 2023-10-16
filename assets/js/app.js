@@ -11,8 +11,6 @@ let Hooks = {};
 // matches a path like "/games/12"
 const GAME_URL_REGEX = /\/games\/(\d+)/;
 
-// selects the elem we'll append the game canvas to
-
 // if we're on a game page, draw the game and setup the GameContainer
 if (location.pathname.match(GAME_URL_REGEX)) {
   let GameCtx;
@@ -24,7 +22,7 @@ if (location.pathname.match(GAME_URL_REGEX)) {
         console.log("game loaded: ", data);
 
         GameCtx = new GameContext(
-          document.querySelector("#game-container"), // div we'll append our game canvas to
+          document.querySelector("#game-container"),
           this.pushEvent.bind(this), // how we'll send messages to the server
           data.game
         );
@@ -36,7 +34,7 @@ if (location.pathname.match(GAME_URL_REGEX)) {
 
       this.handleEvent("game_started", data => {
         console.log("game started: ", data);
-        GameCtx.onGameStart(data.game, data.players, data.playable_cards);
+        GameCtx.onGameStart(data.game);
       });
 
       this.handleEvent("player_joined", data => {

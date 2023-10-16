@@ -133,7 +133,7 @@ defmodule Golf.GamesDb do
     game_changeset =
       Game.changeset(
         game,
-        Map.take(new_game, [:status, :deck, :table_cards])
+        Map.take(new_game, [:status, :turn, :deck, :table_cards])
       )
 
     {player, index} = Games.get_player(game.players, event.player_id)

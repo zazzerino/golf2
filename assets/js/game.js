@@ -27,7 +27,6 @@ const DOWN_CARD = "2B";
 
 export class GameContext {
   constructor(container, pushEvent, game) {
-    window.GAMECTX = this;
     this.container = container;
     this.pushEvent = pushEvent;
     this.game = game;
@@ -76,28 +75,28 @@ export class GameContext {
 
   onGameStart(game) {
     this.game = game;
+    const lastPlayerIndex = this.game.players.length - 1;
 
-    for (const player of this.game.players) {
+    this.game.players.forEach((player, playerIndex) => {
       this.addHand(player);
 
       this.tweenHandDeal(player.position)
-        .forEach((cardTween, index) => {
+        .forEach((cardTween, cardIndex) => {
           cardTween.start();
 
-          if (index == HAND_SIZE - 1) { // the last card in the hand
+          if (cardIndex == HAND_SIZE - 1
+            && playerIndex == lastPlayerIndex) {
             cardTween.onComplete(() => {
               this.tweenDeckStart()
                 .onComplete(() => {
                   this.addTableCards();
-
-                  this.tweenTableDeal()
-                    .start();
+                  this.tweenTableDeal().start();
                 })
                 .start();
             });
           }
         });
-    }
+    });
   }
 
   onPlayerJoin(game, _userId) {
@@ -150,11 +149,13 @@ export class GameContext {
   // events from client
 
   onHandClick(player_id, hand_index) {
-    this.pushEvent("hand_click", { player_id, hand_index });
+    if (this.player_id = player_id) {
+      this.pushEvent("hand_click", { player_id, hand_index });
+    }
   }
 
   onDeckClick() {
-    console.log("clicked deck");
+    this.pushEvent("deck_click", { player_id: this.player_id });
   }
 
   onTableClick() {
@@ -211,7 +212,8 @@ export class GameContext {
       sprite.place = "hand";
       sprite.handIndex = i;
 
-      if (this.placeIsPlayable(`hand_${i}`)) {
+      if (this.game.player_id === player.id
+        && this.placeIsPlayable(`hand_${i}`)) {
         makeCardPlayable(sprite, () => this.onHandClick(player.id, i));
       }
 
@@ -229,7 +231,7 @@ export class GameContext {
     const fromY = -CARD_HEIGHT / 2;
     sprite.y = fromY;
 
-    return new TWEEN.Tween(this.sprites.deck)
+    return new TWEEN.Tween(sprite)
       .to({ y: toY }, 1000)
       .easing(TWEEN.Easing.Quadratic.Out)
   }

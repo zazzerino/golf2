@@ -129,12 +129,12 @@ defmodule GolfWeb.GameLive do
   @impl true
   def handle_info({:game_event, game, event}, socket) do
     user_id = socket.assigns.user.id
-    %{playable_cards: playable_cards} = game_data = GameData.from(user_id, game)
+    game_data = GameData.from(user_id, game)
 
     {:noreply,
      socket
      |> push_event("game_event", %{"game" => game_data, "event" => event})
-     |> assign(game: game, playable_cards: playable_cards)}
+     |> assign(game: game)}
   end
 
   @impl true
@@ -159,13 +159,12 @@ defmodule GolfWeb.GameLive do
   @impl true
   def handle_event("confirm_join", %{"request_id" => req_id}, socket)
       when socket.assigns.user_is_host? do
-    with game when is_struct(game) <- socket.assigns.game,
-         {req_id, _} when is_integer(req_id) <- Integer.parse(req_id),
-         req when is_struct(req) <- GamesDb.get_join_request(req_id),
-         {:ok, game, user_id} <- GamesDb.confirm_join_request(game, req) do
-      broadcast(game.id, {:player_joined, game, user_id})
-    end
+    game = socket.assigns.game
+    {req_id, _} = Integer.parse(req_id)
+    req = GamesDb.get_join_request(req_id)
+    {:ok, game, user_id} = GamesDb.confirm_join_request(game, req)
 
+    broadcast(game.id, {:player_joined, game, user_id})
     {:noreply, socket}
   end
 
@@ -192,6 +191,14 @@ defmodule GolfWeb.GameLive do
         {:noreply, socket}
     end
   end
+
+  # @impl true
+  # def handle_event(
+  #   "deck_click",
+  #   %{"player_id" => player_id}
+  # ) do
+
+  # end
 
   defp topic(game_id), do: "game:#{game_id}"
 

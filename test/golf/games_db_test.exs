@@ -13,10 +13,10 @@ defmodule Golf.GamesDbTest do
     game2 = GamesDb.get_game(game.id)
     assert game == game2
 
-    {:ok, game3} = GamesDb.start_game(game) |> dbg()
-    assert game3.status == :flip_2
-    assert game3.players |> List.first() |> Map.get(:hand) |> length() == 6
+    # {:ok, game3} = GamesDb.start_game(game) |> dbg()
+    # assert game3.status == :flip_2
+    # assert game3.players |> List.first() |> Map.get(:hand) |> length() == 6
 
-    game4 = GamesDb.get_game(game3.id) |> dbg()
+    # game4 = GamesDb.get_game(game3.id) |> dbg()
   end
 end

@@ -14,5 +14,9 @@ defmodule Golf.GamesTest do
 
     {:ok, game2} = Games.start_game(game)
     assert game2.status == :flip_2
+
+    # Enum.map(game2.players, fn p ->
+    #   Games.playable_cards(game2, p) |> dbg()
+    # end)
   end
 end

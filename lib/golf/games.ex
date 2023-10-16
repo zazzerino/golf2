@@ -60,11 +60,11 @@ defmodule Golf.Games do
         %Game{status: :flip_2} = game,
         %GameEvent{action: :flip} = event
       ) do
-    {player, player_index} = get_player(game.players, event.player_id)
+    {player, index} = get_player(game.players, event.player_id)
 
     if num_cards_face_up(player.hand) < 2 do
       hand = flip_card(player.hand, event.hand_index)
-      players = List.update_at(game.players, player_index, &Map.put(&1, :hand, hand))
+      players = List.update_at(game.players, index, &Map.put(&1, :hand, hand))
 
       all_done_flipping? =
         Enum.all?(players, fn p ->
@@ -78,24 +78,23 @@ defmodule Golf.Games do
     end
   end
 
-  # def handle_event(
-  #       %Game{status: :take} = game,
-  #       players,
-  #       %GameEvent{action: :take_from_deck} = event
-  #     ) do
-  #   player = Map.get(players, event.player_id)
+  def handle_event(
+        %Game{status: :take} = game,
+        %GameEvent{action: :take_from_deck} = event
+      ) do
+    {player, index} = get_player(game.players, event.player_id)
 
-  #   if is_players_turn(game, player, map_size(players)) do
-  #     {:ok, card, deck} = deal_from_deck(game.deck)
-  #     players = Map.update!(players, player.id, &Map.put(&1, :held_card, card))
-  #     game = %Game{game | status: :hold, deck: deck}
-  #     {:ok, game, players}
-  #   else
-  #     {:error, :not_players_turn}
-  #   end
-  # end
+    if is_players_turn(game, player) do
+      {:ok, card, deck} = deal_from_deck(game.deck)
+      players = List.update_at(game.players, index, &Map.put(&1, :held_card, card))
+      game = %Game{game | status: :hold, deck: deck, players: players}
+      {:ok, game}
+    else
+      {:error, :not_players_turn}
+    end
+  end
 
-  def playable_cards(%Game{status: :flip2}, %Player{} = player) do
+  def playable_cards(%Game{status: :flip_2}, %Player{} = player) do
     if num_cards_face_up(player.hand) < 2 do
       face_down_cards(player.hand)
     else
@@ -105,7 +104,7 @@ defmodule Golf.Games do
 
   def playable_cards(%Game{} = game, %Player{} = player) when is_players_turn(game, player) do
     case game.status do
-      s when s in [:flip_2, :flip] ->
+      s when s in [:flip] ->
         face_down_cards(player.hand)
 
       s when s in [:take, :last_take] ->
@@ -119,9 +118,7 @@ defmodule Golf.Games do
     end
   end
 
-  def playable_cards(%Game{}, _) do
-    []
-  end
+  def playable_cards(%Game{}, _), do: []
 
   def score(hand) do
     hand
