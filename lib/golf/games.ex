@@ -112,6 +112,56 @@ defmodule Golf.Games do
     end
   end
 
+  def handle_event(%Game{status: :hold} = game, %GameEvent{action: :swap} = event) do
+    {player, index} = get_player(game.players, event.player_id)
+
+    if is_players_turn(game, player) do
+      {card, hand} = swap_card(player.hand, player.held_card, event.hand_index)
+      table_cards = [card | game.table_cards]
+
+      players =
+        List.update_at(game.players, index, fn player ->
+          player |> Map.put(:hand, hand) |> Map.put(:held_card, nil)
+        end)
+
+      game = %Game{game | table_cards: table_cards, players: players}
+      {:ok, game}
+    else
+      {:error, :not_players_turn}
+    end
+  end
+
+  def handle_event(%Game{status: :flip} = game, %GameEvent{action: :flip} = event) do
+    {player, index} = get_player(game.players, event.player_id)
+
+    if is_players_turn(game, player) do
+      players =
+        List.update_at(game.players, index, fn p ->
+          hand = flip_card(p.hand, event.hand_index)
+          Map.put(p, :hand, hand)
+        end)
+
+      {status, turn} =
+        cond do
+          Enum.all?(players, fn p -> all_face_up?(p.hand) end) ->
+            {:over, game.turn}
+
+          all_face_up?(player.hand) ->
+            {:last_take, game.turn + 1}
+
+          true ->
+            {:take, game.turn + 1}
+        end
+
+      game = %Game{game | status: status, turn: turn, players: players}
+      {:ok, game}
+    else
+      {:error, :not_players_turn}
+    end
+  end
+
+  # def handle_event(game, _), do: {:ok, game}
+
   def playable_cards(%Game{status: :flip_2}, %Player{} = player) do
     if num_cards_face_up(player.hand) < 2 do
       face_down_cards(player.hand)
@@ -179,18 +229,22 @@ defmodule Golf.Games do
     end)
   end
 
+  defp swap_card(hand, card_name, index) do
+    old_card_name = Enum.at(hand, index) |> Map.get("name")
+    hand = List.replace_at(hand, index, %{"name" => card_name, "face_up?" => true})
+    {old_card_name, hand}
+  end
+
   # defp flip_all(hand) do
   #   Enum.map(hand, fn card -> Map.put(card, "face_up?", true) end)
   # end
 
-  # def swap_card(hand, card_name, index) do
-  #   old_card = Enum.at(hand, index, %{"name" => card_name, "face_up?" => true})
-  # hand = List.replace_at(hand, index, %{"name" => card_name, "face_up?" => true})
-  # {old_card, hand}
-  # end
-
   defp num_cards_face_up(hand) do
     Enum.count(hand, fn card -> card["face_up?"] end)
+  end
+
+  defp all_face_up?(hand) do
+    num_cards_face_up(hand) == @hand_size
   end
 
   defp face_down_cards(hand) do

@@ -30,6 +30,8 @@ const DOWN_CARD = "2B";
 
 export class GameContext {
   constructor(container, pushEvent, game) {
+    window.GAMECTX = this;
+
     this.container = container;
     this.pushEvent = pushEvent;
     this.game = game;
@@ -83,8 +85,8 @@ export class GameContext {
   onGameStart(game) {
     this.game = game;
 
-    const lastCardIndex = HAND_SIZE - 1;
-    const lastPlayerIndex = this.game.players.length - 1;
+    const lastCard = HAND_SIZE - 1;
+    const lastPlayer = this.game.players.length - 1;
 
     this.game.players.forEach((player, playerIndex) => {
       this.addHand(player);
@@ -93,8 +95,7 @@ export class GameContext {
         .forEach((cardTween, cardIndex) => {
           cardTween.start();
 
-          if (cardIndex == lastCardIndex
-            && playerIndex == lastPlayerIndex) {
+          if (cardIndex === lastCard && playerIndex === lastPlayer) {
             cardTween.onComplete(() => {
               this.tweenDeckStart()
                 .onComplete(() => {
@@ -119,15 +120,23 @@ export class GameContext {
 
     switch (event.action) {
       case "flip":
+        console.log("flipping");
         this.onFlip(event);
         break;
 
       case "take_from_deck":
+        console.log("taking");
         this.onTakeFromDeck(event);
         break;
 
       case "discard":
+        console.log("discarding");
         this.onDiscard(event);
+        break;
+
+      case "swap":
+        console.log("swapping");
+        this.onSwap(event);
         break;
     }
   }
@@ -142,33 +151,35 @@ export class GameContext {
     const cardName = player.hand[index]["name"];
     const coord = handCardCoord(player.position, index);
 
-    const newSprite = makeCardSprite(cardName, coord.x, coord.y);
+    const newSprite = makeCardSprite(cardName, coord.x, coord.y, coord.rotation);
 
-    this.sprites.hands[player.position][index] = newSprite;
+    handSprites[index] = newSprite;
     this.stage.addChild(newSprite)
 
     this.tweenWiggle(newSprite, coord.x)
       .start();
 
     for (let i = 0; i < handSprites.length; i++) {
-      if (!this.placeIsPlayable(`hand_${i}`)) {
-        makeCardUnplayable(handSprites[i]);
+      const sprite = handSprites[i];
+
+      if (sprite && !this.placeIsPlayable(`hand_${i}`)) {
+        // makeCardUnplayable(sprite);
       }
     }
 
     const deckSprite = this.sprites.deck;
 
-    if (deckSprite && this.placeIsPlayable("deck")) {
-      makeCardPlayable(deckSprite, this.onDeckClick.bind(this));
+    if (deckSprite && !deckSprite.isPlayable && this.placeIsPlayable("deck")) {
+      // makeCardPlayable(deckSprite, this.onDeckClick.bind(this));
     }
 
     const tableSprite = this.sprites.tableCards[0];
 
-    if (tableSprite && this.placeIsPlayable("table")) {
-      makeCardPlayable(tableSprite, this.onTableClick.bind(this));
+    if (tableSprite && !tableSprite.isPlayable && this.placeIsPlayable("table")) {
+      // makeCardPlayable(tableSprite, this.onTableClick.bind(this));
     }
 
-    setTimeout(() => { oldSprite.visible = false }, 200);
+    setTimeout(() => { oldSprite.visible = false; oldSprite = null; }, 200);
   }
 
   onTakeFromDeck(event) {
@@ -198,7 +209,8 @@ export class GameContext {
       const handSprites = this.sprites.hands[player.position];
 
       for (let i = 0; i < handSprites.length; i++) {
-        makeCardPlayable(handSprites[i], () => this.onHandClick(player.id, i))
+        const sprite = handSprites[i];
+        makeCardPlayable(sprite, () => this.onHandClick(player.id, i))
       }
     }
   }
@@ -230,6 +242,10 @@ export class GameContext {
       .to({ x: toX, y: toY }, 600)
       .easing(TWEEN.Easing.Quadratic.InOut)
       .start();
+  }
+
+  onSwap(event) {
+    const player = this.game.players.find(p => p.id === event.player_id);
   }
 
   // events from client
@@ -302,8 +318,9 @@ export class GameContext {
       sprite.place = "hand";
       sprite.handIndex = i;
 
-      if (this.game.player_id === player.id
-        && this.placeIsPlayable(`hand_${i}`)) {
+      const isPlayable = this.placeIsPlayable(`hand_${i}`);
+
+      if (this.game.player_id === player.id && isPlayable) {
         makeCardPlayable(sprite, () => this.onHandClick(player.id, i));
       }
 
@@ -377,9 +394,12 @@ export class GameContext {
 
       sprite.x = DECK_X_INIT;
       sprite.y = DECK_Y;
+      sprite.rotation = 0;
+
+      const rotation = position === "left" || position === "right" ? toRadians(90) : 0;
 
       const tween = new TWEEN.Tween(sprite)
-        .to({ x: toX, y: toY, rotation: toRadians(180) }, 800)
+        .to({ x: toX, y: toY, rotation }, 800)
         .easing(TWEEN.Easing.Cubic.InOut)
         .delay((HAND_SIZE - 1 - i) * 150);
 
@@ -389,7 +409,7 @@ export class GameContext {
     return cardTweens;
   }
 
-  tweenWiggle(sprite, toX, distancePx = 1, repeats = 2) {
+  tweenWiggle(sprite, toX, duration = 100, distancePx = 1, repeats = 2) {
     const tweenReturn = new TWEEN.Tween(sprite)
       .to({ x: toX }, 50)
       .easing(TWEEN.Easing.Quadratic.Out)
@@ -397,7 +417,7 @@ export class GameContext {
     sprite.x = toX - distancePx;
 
     return new TWEEN.Tween(sprite)
-      .to({ x: toX + distancePx }, 100)
+      .to({ x: toX + distancePx }, duration)
       .easing(TWEEN.Easing.Quintic.InOut)
       .repeat(repeats)
       .yoyo(true)
@@ -430,6 +450,7 @@ function makeCardSprite(cardName, x = 0, y = 0, rotation = 0) {
 const OUTLINE_FILTER = new OutlineFilter(2, 0xff00ff);
 
 function makeCardPlayable(sprite, callback) {
+  console.log("playable", sprite.place)
   sprite.eventMode = "static";
   sprite.cursor = "pointer";
   sprite.filters = [OUTLINE_FILTER];
@@ -437,6 +458,7 @@ function makeCardPlayable(sprite, callback) {
 }
 
 function makeCardUnplayable(sprite) {
+  console.log("unplayable", sprite.place)
   sprite.eventMode = "none";
   sprite.cursor = "none";
   sprite.filters = [];

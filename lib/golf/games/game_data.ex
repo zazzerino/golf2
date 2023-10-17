@@ -39,7 +39,7 @@ defmodule Golf.Games.GameData do
   defp hand_positions(num_players) do
     case num_players do
       1 -> ~w(bottom)
-      2 -> ~w(bottom top)
+      2 -> ~w(bottom right)
       3 -> ~w(bottom left right)
       4 -> ~w(bottom left top right)
     end

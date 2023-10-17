@@ -8,8 +8,8 @@ import { GameContext } from "./game";
 
 let Hooks = {};
 
-// matches a path like "/games/12"
-const GAME_URL_REGEX = /\/games\/(\d+)/;
+// matches a path like "/games/42"
+const GAME_URL_REGEX = /\/games\/\d+/;
 
 // if we're on a game page, draw the game and setup the GameContainer
 if (location.pathname.match(GAME_URL_REGEX)) {
@@ -34,17 +34,17 @@ if (location.pathname.match(GAME_URL_REGEX)) {
 
       this.handleEvent("game_started", data => {
         console.log("game started: ", data);
-        GameCtx.onGameStart(data.game);
+        GameCtx && GameCtx.onGameStart(data.game);
       });
 
       this.handleEvent("player_joined", data => {
         console.log("player joined: ", data);
-        GameCtx.onPlayerJoin(data.game, data.user_id);
+        GameCtx && GameCtx.onPlayerJoin(data.game, data.user_id);
       });
 
       this.handleEvent("game_event", data => {
         console.log("game event: ", data);
-        GameCtx.onGameEvent(data.game, data.event);
+        GameCtx && GameCtx.onGameEvent(data.game, data.event);
       });
     }
   }
