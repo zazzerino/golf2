@@ -83,14 +83,14 @@ export interface GameEvent {
 
 type PushEvent = (action: string, data: object) => any;
 
-const RANKS = "A23456789TJQK";
-const SUITS = "CDHS";
+const RANKS = "A23456789TJQK".split("");
+const SUITS = "CDHS".split("");
 
 function cardNames() {
   const names: CardName[] = [DOWN_CARD];
 
-  for (const rank of RANKS.split("")) {
-    for (const suit of SUITS.split("")) {
+  for (const rank of RANKS) {
+    for (const suit of SUITS) {
       names.push(rank + suit);
     }
   }
@@ -112,8 +112,10 @@ function cardTextures(names: CardName[]) {
   return textures;
 }
 
+const CARD_TEXTURES = cardTextures(cardNames());
+
 export function loadTextures() {
-  PIXI.Assets.addBundle("cards", cardTextures(cardNames()));
+  PIXI.Assets.addBundle("cards", CARD_TEXTURES);
   PIXI.Assets.backgroundLoadBundle("cards");
 }
 
@@ -366,9 +368,12 @@ export class GameContext {
 
     heldSprite.x = deckSprite.x;
     heldSprite.y = deckSprite.y;
+    heldSprite.rotation = 0;
+
+    const rotation = playerRotation(player.position);
 
     new Tween(heldSprite)
-      .to({ x: toX, y: toY }, 800)
+      .to({ x: toX, y: toY, rotation }, 800)
       .delay(200)
       .easing(Easing.Quadratic.InOut)
       .start();
@@ -402,10 +407,13 @@ export class GameContext {
 
     heldSprite.x = tableSprite.x;
     heldSprite.y = tableSprite.y;
+    heldSprite.rotation = 0;
+
+    const rotation = playerRotation(player.position);
 
     new Tween(heldSprite)
       .onStart(() => tableSprite.visible = false)
-      .to({ x: toX, y: toY }, 800)
+      .to({ x: toX, y: toY, rotation }, 800)
       .easing(Easing.Quadratic.InOut)
       .start();
 
@@ -460,6 +468,7 @@ export class GameContext {
             this.sprites.tables[1] = secondSprite;
             this.stage.addChild(secondSprite)
 
+            // redraw the first table card so it's on top
             tableSprite.visible = false;
             makeUnplayable(tableSprite);
 
@@ -496,6 +505,7 @@ export class GameContext {
 
     tableSprite.x = toX;
     tableSprite.y = toY;
+    tableSprite.rotation = playerRotation(player.position);
 
     new Tween(heldSprite)
       .to({ x: toX, y: toY }, 500)
@@ -507,7 +517,7 @@ export class GameContext {
       .start();
 
     new Tween(tableSprite)
-      .to({ x: TABLE_CARD_X, y: TABLE_CARD_Y }, 500)
+      .to({ x: TABLE_CARD_X, y: TABLE_CARD_Y, rotation: 0 }, 700)
       .easing(Easing.Quadratic.InOut)
       .delay(200)
       .start();
@@ -525,8 +535,10 @@ export class GameContext {
     const toX = tableSprite.x;
     const toY = tableSprite.y;
 
+
     tableSprite.x = heldSprite.x;
     tableSprite.y = heldSprite.y;
+    tableSprite.rotation = playerRotation(player.position);
 
     this.sprites.hands[player.position].forEach((sprite, index) => {
       const place = `hand_${index}` as Place;
@@ -541,7 +553,7 @@ export class GameContext {
     }
 
     new Tween(tableSprite)
-      .to({ x: toX, y: toY }, 800)
+      .to({ x: toX, y: toY, rotation: 0 }, 800)
       .easing(Easing.Quadratic.InOut)
       .start();
   }
@@ -595,6 +607,7 @@ export class GameContext {
 
       cardSprite.x = DECK_X_INIT;
       cardSprite.y = DECK_Y;
+      cardSprite.rotation = 0;
 
       const rotation = playerRotation(position);
 

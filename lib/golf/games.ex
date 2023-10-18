@@ -10,7 +10,8 @@ defmodule Golf.Games do
   @hand_size 6
 
   defguard is_players_turn(game, player)
-           when rem(game.turn, length(game.players)) == player.turn
+           when game.status == :flip_2 or
+                  rem(game.turn, length(game.players)) == player.turn
 
   def create_game(%User{} = host) do
     player = %Player{
@@ -57,12 +58,14 @@ defmodule Golf.Games do
     {player, index}
   end
 
-  def handle_event(%Game{status: :flip_2} = game, %GameEvent{action: :flip} = event) do
-    {player, index} = get_player(game.players, event.player_id)
-
+  def handle_event(
+        %Game{status: :flip_2} = game,
+        %GameEvent{action: :flip} = event,
+        {%Player{} = player, player_index}
+      ) do
     if num_cards_face_up(player.hand) < 2 do
       hand = flip_card(player.hand, event.hand_index)
-      players = List.update_at(game.players, index, &Map.put(&1, :hand, hand))
+      players = List.update_at(game.players, player_index, &Map.put(&1, :hand, hand))
 
       all_done_flipping? =
         Enum.all?(players, fn p ->
@@ -77,138 +80,148 @@ defmodule Golf.Games do
     end
   end
 
-  def handle_event(%Game{status: :take} = game, %GameEvent{action: :take_from_deck} = event) do
-    {player, index} = get_player(game.players, event.player_id)
+  def handle_event(
+        %Game{status: :take} = game,
+        %GameEvent{action: :take_from_deck},
+        {_, player_index}
+      ) do
+    {:ok, card, deck} = deal_from_deck(game.deck)
+    players = List.update_at(game.players, player_index, &Map.put(&1, :held_card, card))
+    game = %Game{game | status: :hold, deck: deck, players: players}
+    {:ok, game}
+  end
 
-    if is_players_turn(game, player) do
-      {:ok, card, deck} = deal_from_deck(game.deck)
-      players = List.update_at(game.players, index, &Map.put(&1, :held_card, card))
-      game = %Game{game | status: :hold, deck: deck, players: players}
+  def handle_event(
+        %Game{status: :last_take} = game,
+        %GameEvent{action: :take_from_deck} = event,
+        {%Player{} = player, player_index}
+      ) do
+    with take_game <- Map.put(game, :status, :take),
+         {:ok, game} <- handle_event(take_game, event, {player, player_index}),
+         game <- Map.put(game, :status, :last_hold) do
       {:ok, game}
-    else
-      {:error, :not_players_turn}
     end
   end
 
-  def handle_event(%Game{status: :take} = game, %GameEvent{action: :take_from_table} = event) do
-    {player, index} = get_player(game.players, event.player_id)
+  def handle_event(
+        %Game{status: :take} = game,
+        %GameEvent{action: :take_from_table},
+        {_, player_index}
+      ) do
+    [card | table_cards] = game.table_cards
+    players = List.update_at(game.players, player_index, &Map.put(&1, :held_card, card))
+    game = %Game{game | status: :hold, table_cards: table_cards, players: players}
+    {:ok, game}
+  end
 
-    if is_players_turn(game, player) do
-      [card | table_cards] = game.table_cards
-      players = List.update_at(game.players, index, &Map.put(&1, :held_card, card))
-      game = %Game{game | status: :hold, table_cards: table_cards, players: players}
+  def handle_event(
+        %Game{status: :last_take} = game,
+        %GameEvent{action: :take_from_table} = event,
+        {%Player{} = player, player_index}
+      ) do
+    with take_game <- Map.put(game, :status, :take),
+         {:ok, game} <- handle_event(take_game, event, {player, player_index}),
+         game <- Map.put(game, :status, :last_hold) do
       {:ok, game}
-    else
-      {:error, :not_players_turn}
     end
   end
 
-  def handle_event(%Game{status: :hold} = game, %GameEvent{action: :discard} = event) do
-    {player, index} = get_player(game.players, event.player_id)
+  def handle_event(
+        %Game{status: :hold} = game,
+        %GameEvent{action: :discard},
+        {%Player{} = player, player_index}
+      ) do
+    card = player.held_card
+    table_cards = [card | game.table_cards]
 
-    if is_players_turn(game, player) do
-      card = player.held_card
-      table_cards = [card | game.table_cards]
+    {status, turn} =
+      if num_cards_face_up(player.hand) == 5 do
+        {:take, game.turn + 1}
+      else
+        {:flip, game.turn}
+      end
 
-      {status, turn} =
-        if num_cards_face_up(player.hand) == 5 do
+    players = List.update_at(game.players, player_index, &Map.put(&1, :held_card, nil))
+    game = %Game{game | status: status, turn: turn, table_cards: table_cards, players: players}
+    {:ok, game}
+  end
+
+  def handle_event(
+        %Game{status: :last_hold} = game,
+        %GameEvent{action: :discard},
+        {%Player{} = player, player_index}
+      ) do
+    card = player.held_card
+    table_cards = [card | game.table_cards]
+    {_, other_players} = List.pop_at(game.players, player_index)
+
+    {status, turn, hand} =
+      if Enum.all?(other_players, &all_face_up?(&1.hand)) do
+        {:over, game.turn, flip_all(player.hand)}
+      else
+        {:last_take, game.turn + 1, player.hand}
+      end
+
+    players = List.update_at(game.players, player_index, &Map.put(&1, :hand, hand))
+    game = %Game{game | status: status, turn: turn, table_cards: table_cards, players: players}
+    {:ok, game}
+  end
+
+  def handle_event(
+        %Game{status: :hold} = game,
+        %GameEvent{action: :swap} = event,
+        {%Player{} = player, player_index}
+      ) do
+    {card, hand} = swap_card(player.hand, player.held_card, event.hand_index)
+    table_cards = [card | game.table_cards]
+
+    players =
+      List.update_at(game.players, player_index, fn player ->
+        player |> Map.put(:hand, hand) |> Map.put(:held_card, nil)
+      end)
+
+    {status, turn} =
+      cond do
+        Enum.all?(players, &all_face_up?(&1.hand)) ->
+          {:over, game.turn}
+
+        all_face_up?(hand) ->
+          {:last_take, game.turn + 1}
+
+        true ->
           {:take, game.turn + 1}
-        else
-          {:flip, game.turn}
-        end
+      end
 
-      players = List.update_at(game.players, index, &Map.put(&1, :held_card, nil))
-      game = %Game{game | status: status, turn: turn, table_cards: table_cards, players: players}
-      {:ok, game}
-    else
-      {:error, :not_players_turn}
-    end
+    game = %Game{game | status: status, turn: turn, table_cards: table_cards, players: players}
+    {:ok, game}
   end
 
-  def handle_event(%Game{status: :last_hold} = game, %GameEvent{action: :discard} = event) do
-    {player, index} = get_player(game.players, event.player_id)
+  def handle_event(
+        %Game{status: :flip} = game,
+        %GameEvent{action: :flip} = event,
+        {%Player{} = player, player_index}
+      ) do
+    players =
+      List.update_at(game.players, player_index, fn p ->
+        hand = flip_card(p.hand, event.hand_index)
+        Map.put(p, :hand, hand)
+      end)
 
-    if is_players_turn(game, player) do
-      card = player.held_card
-      table_cards = [card | game.table_cards]
-      {_, other_players} = List.pop_at(game.players, index)
+    {status, turn} =
+      cond do
+        Enum.all?(players, fn p -> all_face_up?(p.hand) end) ->
+          {:over, game.turn}
 
-      {status, turn, hand} =
-        if Enum.all?(other_players, &all_face_up?(&1.hand)) do
-          {:over, game.turn, flip_all(player.hand)}
-        else
-          {:last_take, game.turn + 1, player.hand}
-        end
+        all_face_up?(player.hand) ->
+          {:last_take, game.turn + 1}
 
-      players = List.update_at(game.players, index, &Map.put(&1, :hand, hand))
-      game = %Game{game | status: status, turn: turn, table_cards: table_cards, players: players}
-      {:ok, game}
-    else
-      {:error, :not_players_turn}
-    end
+        true ->
+          {:take, game.turn + 1}
+      end
+
+    game = %Game{game | status: status, turn: turn, players: players}
+    {:ok, game}
   end
-
-  def handle_event(%Game{status: :hold} = game, %GameEvent{action: :swap} = event) do
-    {player, index} = get_player(game.players, event.player_id)
-
-    if is_players_turn(game, player) do
-      {card, hand} = swap_card(player.hand, player.held_card, event.hand_index)
-      table_cards = [card | game.table_cards]
-
-      players =
-        List.update_at(game.players, index, fn player ->
-          player |> Map.put(:hand, hand) |> Map.put(:held_card, nil)
-        end)
-
-      {status, turn} =
-        cond do
-          Enum.all?(players, &all_face_up?(&1.hand)) ->
-            {:over, game.turn}
-
-          all_face_up?(hand) ->
-            {:last_take, game.turn + 1}
-
-          true ->
-            {:take, game.turn + 1}
-        end
-
-      game = %Game{game | status: status, turn: turn, table_cards: table_cards, players: players}
-      {:ok, game}
-    else
-      {:error, :not_players_turn}
-    end
-  end
-
-  def handle_event(%Game{status: :flip} = game, %GameEvent{action: :flip} = event) do
-    {player, index} = get_player(game.players, event.player_id)
-
-    if is_players_turn(game, player) do
-      players =
-        List.update_at(game.players, index, fn p ->
-          hand = flip_card(p.hand, event.hand_index)
-          Map.put(p, :hand, hand)
-        end)
-
-      {status, turn} =
-        cond do
-          Enum.all?(players, fn p -> all_face_up?(p.hand) end) ->
-            {:over, game.turn}
-
-          all_face_up?(player.hand) ->
-            {:last_take, game.turn + 1}
-
-          true ->
-            {:take, game.turn + 1}
-        end
-
-      game = %Game{game | status: status, turn: turn, players: players}
-      {:ok, game}
-    else
-      {:error, :not_players_turn}
-    end
-  end
-
-  # def handle_event(game, _), do: {:ok, game}
 
   def playable_cards(%Game{status: :flip_2}, %Player{} = player) do
     if num_cards_face_up(player.hand) < 2 do
