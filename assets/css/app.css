@@ -3,3 +3,9 @@
 @import "tailwindcss/utilities";
 
 /* This file is for your main application CSS */
+
+#game-canvas {
+  width: 600px;
+  height: 600px;
+  background-color: #2e8b57;
+}

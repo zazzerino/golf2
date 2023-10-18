@@ -227,5 +227,4 @@ defmodule GolfWeb.GameLive do
 
   defp hand_action(status) when status in [:flip_2, :flip], do: :flip
   defp hand_action(:hold), do: :swap
-  # defp hand_action(_), do: nil
 end
