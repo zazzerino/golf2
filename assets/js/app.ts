@@ -10,28 +10,27 @@ type GameMessage = { game: Game };
 type GameEventMessage = { game: Game, event: GameEvent };
 type PlayerJoinMessage = { game: Game, player_id: number };
 
+const Hooks: { GameCanvas?: any } = {};
+
 // matches a path like "/games/42"
 const GAME_URL_REGEX = /\/games\/\d+/;
-const GAME_CANVAS_SELECTOR = "#game-canvas";
 
-let hooks: { GameCanvas?: any } = {};
-
-// if we're on a game page, draw the game and setup the GameCanvas
+// if we're on a game page, setup the GameCanvas
 if (location.pathname.match(GAME_URL_REGEX)) {
   loadTextures();
   let gameContext: GameContext;
 
   // the <div> this connects to is in game_live.html.heex
-  hooks.GameCanvas = {
+  Hooks.GameCanvas = {
     mounted() {
       this.handleEvent("game_loaded", (data: GameMessage) => {
         console.log("game loaded:", data);
 
-        const parent = document.querySelector<HTMLElement>(GAME_CANVAS_SELECTOR);
-        if (parent == null) throw new Error(`couldn't find ${GAME_CANVAS_SELECTOR}`);
-
-        const pushEvent = this.pushEvent.bind(this);
-        gameContext = new GameContext(data.game, parent, pushEvent);
+        gameContext = new GameContext(
+          data.game, 
+          this.el,
+          this.pushEvent.bind(this)
+        );
       });
 
       this.handleEvent("game_started", (data: GameMessage) => {
@@ -45,6 +44,7 @@ if (location.pathname.match(GAME_URL_REGEX)) {
       });
 
       this.handleEvent("player_joined", (data: PlayerJoinMessage) => {
+        console.log("player joined:", data)
         gameContext.onPlayerJoin(data.game, data.player_id);
       });
     }
@@ -52,7 +52,7 @@ if (location.pathname.match(GAME_URL_REGEX)) {
 }
 
 let csrfToken = document.querySelector("meta[name='csrf-token']")?.getAttribute("content");
-let liveSocket = new LiveSocket("/live", Socket, { params: { _csrf_token: csrfToken }, hooks: hooks });
+let liveSocket = new LiveSocket("/live", Socket, { params: { _csrf_token: csrfToken }, hooks: Hooks });
 
 // Show progress bar on live navigation and form submits
 topbar.config({ barColors: { 0: "#29d" }, shadowColor: "rgba(0, 0, 0, .3)" });

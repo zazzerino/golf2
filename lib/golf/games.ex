@@ -125,6 +125,29 @@ defmodule Golf.Games do
     end
   end
 
+  def handle_event(%Game{status: :last_hold} = game, %GameEvent{action: :discard} = event) do
+    {player, index} = get_player(game.players, event.player_id)
+
+    if is_players_turn(game, player) do
+      card = player.held_card
+      table_cards = [card | game.table_cards]
+      {_, other_players} = List.pop_at(game.players, index)
+
+      {status, turn, hand} =
+        if Enum.all?(other_players, &all_face_up?(&1.hand)) do
+          {:over, game.turn, flip_all(player.hand)}
+        else
+          {:last_take, game.turn + 1, player.hand}
+        end
+
+      players = List.update_at(game.players, index, &Map.put(&1, :hand, hand))
+      game = %Game{game | status: status, turn: turn, table_cards: table_cards, players: players}
+      {:ok, game}
+    else
+      {:error, :not_players_turn}
+    end
+  end
+
   def handle_event(%Game{status: :hold} = game, %GameEvent{action: :swap} = event) do
     {player, index} = get_player(game.players, event.player_id)
 
@@ -137,7 +160,19 @@ defmodule Golf.Games do
           player |> Map.put(:hand, hand) |> Map.put(:held_card, nil)
         end)
 
-      game = %Game{game | table_cards: table_cards, players: players}
+      {status, turn} =
+        cond do
+          Enum.all?(players, &all_face_up?(&1.hand)) ->
+            {:over, game.turn}
+
+          all_face_up?(hand) ->
+            {:last_take, game.turn + 1}
+
+          true ->
+            {:take, game.turn + 1}
+        end
+
+      game = %Game{game | status: status, turn: turn, table_cards: table_cards, players: players}
       {:ok, game}
     else
       {:error, :not_players_turn}
@@ -248,9 +283,9 @@ defmodule Golf.Games do
     {old_card_name, hand}
   end
 
-  # defp flip_all(hand) do
-  #   Enum.map(hand, fn card -> Map.put(card, "face_up?", true) end)
-  # end
+  defp flip_all(hand) do
+    Enum.map(hand, fn card -> Map.put(card, "face_up?", true) end)
+  end
 
   defp num_cards_face_up(hand) do
     Enum.count(hand, fn card -> card["face_up?"] end)
