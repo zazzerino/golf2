@@ -90,6 +90,19 @@ defmodule Golf.Games do
     end
   end
 
+  def handle_event(%Game{status: :take} = game, %GameEvent{action: :take_from_table} = event) do
+    {player, index} = get_player(game.players, event.player_id)
+
+    if is_players_turn(game, player) do
+      [card | table_cards] = game.table_cards
+      players = List.update_at(game.players, index, &Map.put(&1, :held_card, card))
+      game = %Game{game | status: :hold, table_cards: table_cards, players: players}
+      {:ok, game}
+    else
+      {:error, :not_players_turn}
+    end
+  end
+
   def handle_event(%Game{status: :hold} = game, %GameEvent{action: :discard} = event) do
     {player, index} = get_player(game.players, event.player_id)
 

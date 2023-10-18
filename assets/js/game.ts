@@ -2,9 +2,6 @@ import * as PIXI from "pixi.js";
 import { Tween, Easing, update as TWEEN_UPDATE } from "@tweenjs/tween.js";
 import { OutlineFilter } from "@pixi/filter-outline";
 
-const RANKS = "A23456789TJQK";
-const SUITS = "CDHS";
-
 const GAME_WIDTH = 600;
 const GAME_HEIGHT = 600;
 
@@ -29,7 +26,10 @@ const HAND_X_PADDING = 3;
 const HAND_Y_PADDING = 10;
 
 const HAND_SIZE = 6;
-const DOWN_CARD = "2B";
+const DOWN_CARD: CardName = "2B";
+
+const RANKS = "A23456789TJQK";
+const SUITS = "CDHS";
 
 type CardName = string;
 type CardPath = string;
@@ -46,7 +46,7 @@ interface Player {
   user_id: number,
   username: string,
   hand: HandCard[],
-  held_card?: string,
+  held_card?: CardName,
   turn: number,
   position: Position,
   score: number,
@@ -71,7 +71,7 @@ export interface Game {
 type Sprites = {
   deck?: PIXI.Sprite,
   held?: PIXI.Sprite,
-  table: PIXI.Sprite[],
+  tables: PIXI.Sprite[],
   hands: { [p in Position]: PIXI.Sprite[] },
 };
 
@@ -87,7 +87,7 @@ export interface GameEvent {
 type PushEvent = (action: string, data: object) => any;
 
 function cardNames() {
-  const names = ["2B"];
+  const names: CardName[] = [DOWN_CARD];
 
   for (const rank of RANKS.split("")) {
     for (const suit of SUITS.split("")) {
@@ -102,28 +102,29 @@ function cardPath(cardName: CardName) {
   return `/images/cards/${cardName}.svg`
 }
 
-function cardAssets(cardNames: CardName[]) {
-  const assets: { [key: CardName]: CardPath } = {};
+function cardTextures(cardNames: CardName[]) {
+  const textures: { [key: CardName]: CardPath } = {};
 
   for (const name of cardNames) {
-    assets[name] = cardPath(name);
+    textures[name] = cardPath(name);
   }
 
-  return assets;
+  return textures;
 }
 
-// load assets in background
-
-PIXI.Assets.addBundle("cards", cardAssets(cardNames()));
-PIXI.Assets.backgroundLoadBundle("cards");
+export function loadTextures() {
+  PIXI.Assets.addBundle("cards", cardTextures(cardNames()));
+  PIXI.Assets.backgroundLoadBundle("cards");
+}
 
 export class GameContext {
   game: Game;
   parent: HTMLElement;
   pushEvent: PushEvent;
 
-  assets: { [key: CardName]: PIXI.Texture };
+  textures: { [key: CardName]: PIXI.Texture };
   sprites: Sprites;
+
   stage: PIXI.Container;
   renderer: PIXI.Renderer;
 
@@ -133,7 +134,7 @@ export class GameContext {
     this.pushEvent = pushEvent;
 
     this.sprites = {
-      table: [],
+      tables: [],
       hands: { bottom: [], left: [], top: [], right: [] },
     };
 
@@ -149,8 +150,8 @@ export class GameContext {
     this.renderer.render(this.stage);
 
     Promise.resolve(PIXI.Assets.loadBundle("cards"))
-      .then(assets => {
-        this.assets = assets;
+      .then(textures => {
+        this.textures = textures;
 
         this.addSprites();
         this.renderer.render(this.stage);
@@ -187,7 +188,7 @@ export class GameContext {
   addDeck() {
     const x = deckX(this.game.status);
 
-    const texture = this.assets[DOWN_CARD];
+    const texture = this.textures[DOWN_CARD];
     const sprite = makeCardSprite(texture, x, DECK_Y);
 
     if (this.isPlayable("deck")) {
@@ -199,22 +200,25 @@ export class GameContext {
   }
 
   addTableCards() {
+    const card0 = this.game.table_cards[0];
     const card1 = this.game.table_cards[1];
+    
     if (card1) this.addTableCard(card1);
 
-    const card0 = this.game.table_cards[0];
-    const sprite = this.addTableCard(card0);
+    if (card0) {
+      const sprite = this.addTableCard(card0);
 
-    if (sprite && this.isPlayable("table")) {
-      makeCardPlayable(sprite, this.onTableClick.bind(this));
+      if (this.isPlayable("table")) {
+        makeCardPlayable(sprite, this.onTableClick.bind(this));
+      }
     }
   }
 
   addTableCard(cardName: string) {
-    const texture = this.assets[cardName];
+    const texture = this.textures[cardName];
     const sprite = makeCardSprite(texture, TABLE_CARD_X, TABLE_CARD_Y);
 
-    this.sprites.table.unshift(sprite);
+    this.sprites.tables.unshift(sprite);
     this.stage.addChild(sprite);
     return sprite;
   }
@@ -224,7 +228,7 @@ export class GameContext {
       const card = player.hand[i];
       const name = card["face_up?"] ? card.name : DOWN_CARD;
 
-      const texture = this.assets[name];
+      const texture = this.textures[name];
       const coord = handCardCoord(player.position, i);
       const sprite = makeCardSprite(texture, coord.x, coord.y, coord.rotation);
 
@@ -243,7 +247,7 @@ export class GameContext {
   addHeldCard(player: Player) {
     if (player.held_card == null) throw new Error("held_card is null");
 
-    const texture = this.assets[player.held_card];
+    const texture = this.textures[player.held_card];
     const coord = heldCardCoord(player.position);
     const sprite = makeCardSprite(texture, coord.x, coord.y, coord.rotation);
 
@@ -307,6 +311,10 @@ export class GameContext {
         this.onTakeFromDeck(event);
         break;
 
+      case "take_from_table":
+        this.onTakeFromTable(event);
+        break;
+
       case "discard":
         this.onDiscard(event);
         break;
@@ -321,12 +329,12 @@ export class GameContext {
     if (player == null) throw new Error("event.player_id is null");
 
     const handSprites = this.sprites.hands[player.position];
-    const sprite = handSprites[index];
+    const handSprite = handSprites[index];
 
     const cardName = player.hand[index]["name"];
-    sprite.texture = this.assets[cardName];
+    handSprite.texture = this.textures[cardName];
 
-    this.tweenWiggle(sprite).start();
+    this.tweenWiggle(handSprite).start();
 
     for (let i = 0; i < handSprites.length; i++) {
       const place = `hand_${i}` as Place;
@@ -341,7 +349,7 @@ export class GameContext {
       makeCardPlayable(deckSprite, this.onDeckClick.bind(this));
     }
 
-    const tableSprite = this.sprites.table[0];
+    const tableSprite = this.sprites.tables[0];
     if (tableSprite && this.isPlayable("table")) {
       makeCardPlayable(tableSprite, this.onTableClick.bind(this));
     }
@@ -353,21 +361,21 @@ export class GameContext {
 
     this.addHeldCard(player);
 
-    const sprite = this.sprites.held;
-    if (sprite == null) throw new Error("held sprite is null");
+    const heldSprite = this.sprites.held;
+    if (heldSprite == null) throw new Error("held sprite is null");
 
-    const toX = sprite.x;
-    const toY = sprite.y;
+    const toX = heldSprite.x;
+    const toY = heldSprite.y;
 
     const deckSprite = this.sprites.deck;
     if (deckSprite == null) throw new Error("deck sprite is null");
 
-    sprite.x = deckSprite.x;
-    sprite.y = deckSprite.y;
+    heldSprite.x = deckSprite.x;
+    heldSprite.y = deckSprite.y;
 
-    new Tween(sprite)
+    new Tween(heldSprite)
       .to({ x: toX, y: toY }, 800)
-      .delay(300)
+      .delay(200)
       .easing(Easing.Quadratic.InOut)
       .start();
 
@@ -375,8 +383,45 @@ export class GameContext {
     if (isUsersEvent) {
       makeCardUnplayable(deckSprite);
 
-      const tableSprite = this.sprites.table[0];
+      const tableSprite = this.sprites.tables[0];
       if (tableSprite) makeCardUnplayable(tableSprite);
+
+      this.sprites.hands[player.position].forEach((sprite, index) => {
+        makeCardPlayable(sprite, () => this.onHandClick(player.id, index));
+      });
+    }
+  }
+
+  onTakeFromTable(event: GameEvent) {
+    const player = this.findPlayer(event.player_id);
+    if (player == null) throw new Error("event.player_id is null");
+
+    this.addHeldCard(player);
+
+    const heldSprite = this.sprites.held;
+    if (heldSprite == null) throw new Error("held sprite is null");
+
+    const toX = heldSprite.x;
+    const toY = heldSprite.y;
+
+    const tableSprite = this.sprites.tables.shift();
+    if (tableSprite == null) throw new Error("table sprite is null");
+    
+    heldSprite.x = tableSprite.x;
+    heldSprite.y = tableSprite.y;
+    
+    new Tween(heldSprite)
+      .onStart(() => tableSprite.visible = false)
+      .to({ x: toX, y: toY }, 800)
+      .easing(Easing.Quadratic.InOut)
+      .start();
+
+    const isUsersEvent = player.id === this.game.player_id;
+    if (isUsersEvent) {
+      makeCardUnplayable(tableSprite);
+
+      const deckSprite = this.sprites.deck;
+      if (deckSprite) makeCardUnplayable(deckSprite);
 
       this.sprites.hands[player.position].forEach((sprite, index) => {
         makeCardPlayable(sprite, () => this.onHandClick(player.id, index));
@@ -390,7 +435,7 @@ export class GameContext {
 
     this.addTableCards();
 
-    const tableSprite = this.sprites.table[0];
+    const tableSprite = this.sprites.tables[0];
     if (tableSprite == null) throw new Error("table sprite is null");
 
     const heldSprite = this.sprites.held;
@@ -498,7 +543,7 @@ export class GameContext {
     const deckSprite = this.sprites.deck;
     if (deckSprite == null) throw new Error("deck sprite is null");
 
-    const tableSprite = this.sprites.table[0];
+    const tableSprite = this.sprites.tables[0];
     if (tableSprite == null) throw new Error("table sprite is null");
 
     const toX = tableSprite.x;

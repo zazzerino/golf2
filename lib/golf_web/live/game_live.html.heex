@@ -2,8 +2,7 @@
   Game <%= @game_id %>
 </h2>
 
-<div id="game-canvas" phx-hook="GameCanvas" phx-update="ignore">
-</div>
+<div id="game-canvas" phx-hook="GameCanvas" phx-update="ignore"></div>
 
 <div class="mt-4">
   <.button :if={@can_start_game?} phx-click="start_game">

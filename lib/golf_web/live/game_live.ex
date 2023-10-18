@@ -173,8 +173,6 @@ defmodule GolfWeb.GameLive do
         %{"player_id" => player_id, "hand_index" => hand_index},
         socket
       ) do
-    IO.puts("HAND CLICKED")
-
     with true <- player_id == socket.assigns.player_id,
          game <- socket.assigns.game,
          action when is_atom(action) <- hand_action(game.status),
@@ -194,6 +192,21 @@ defmodule GolfWeb.GameLive do
     with true <- player_id == socket.assigns.player_id,
          game <- socket.assigns.game,
          event <- GameEvent.new(game.id, player_id, :take_from_deck),
+         {:ok, game, event} <- GamesDb.handle_event(game, event),
+         :ok <- broadcast(game.id, {:game_event, game, event}) do
+      {:noreply, assign(socket, game: game)}
+    end
+  end
+
+  @impl true
+  def handle_event(
+        "table_click",
+        %{"player_id" => player_id},
+        socket
+      ) do
+    with true <- player_id == socket.assigns.player_id,
+         game <- socket.assigns.game,
+         event <- GameEvent.new(game.id, player_id, :take_from_table),
          {:ok, game, event} <- GamesDb.handle_event(game, event),
          :ok <- broadcast(game.id, {:game_event, game, event}) do
       {:noreply, assign(socket, game: game)}

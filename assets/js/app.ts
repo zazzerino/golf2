@@ -4,7 +4,7 @@ import "phoenix_html";
 import { Socket } from "phoenix";
 import { LiveSocket } from "phoenix_live_view";
 import topbar from "../vendor/topbar";
-import { GameContext, Game, GameEvent } from "./game";
+import { loadTextures, GameContext, Game, GameEvent } from "./game";
 
 type GameMessage = { game: Game };
 type GameEventMessage = { game: Game, event: GameEvent };
@@ -18,6 +18,7 @@ let hooks: { GameCanvas?: any } = {};
 
 // if we're on a game page, draw the game and setup the GameCanvas
 if (location.pathname.match(GAME_URL_REGEX)) {
+  loadTextures();
   let gameContext: GameContext;
 
   // the <div> this connects to is in game_live.html.heex
