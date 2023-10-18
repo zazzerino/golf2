@@ -13,6 +13,12 @@ defmodule Golf.Games do
            when game.status == :flip_2 or
                   rem(game.turn, length(game.players)) == player.turn
 
+  def current_player(game, num_players \\ nil) do
+    num_players = num_players || length(game.players)
+    index = rem(game.turn, num_players)
+    Enum.at(game.players, index)
+  end
+
   def create_game(%User{} = host) do
     player = %Player{
       turn: 0,
@@ -72,8 +78,14 @@ defmodule Golf.Games do
           num_cards_face_up(p.hand) >= 2
         end)
 
-      status = if all_done_flipping?, do: :take, else: :flip_2
-      game = %Game{game | status: status, players: players}
+      {status, turn} =
+        if all_done_flipping? do
+          {:take, game.turn + 1}
+        else
+          {:flip_2, game.turn}
+        end
+
+      game = %Game{game | status: status, turn: turn, players: players}
       {:ok, game}
     else
       {:error, :already_flipped}
@@ -93,14 +105,13 @@ defmodule Golf.Games do
 
   def handle_event(
         %Game{status: :last_take} = game,
-        %GameEvent{action: :take_from_deck} = event,
-        {%Player{} = player, player_index}
+        %GameEvent{action: :take_from_deck},
+        {%Player{}, player_index}
       ) do
-    with take_game <- Map.put(game, :status, :take),
-         {:ok, game} <- handle_event(take_game, event, {player, player_index}),
-         game <- Map.put(game, :status, :last_hold) do
-      {:ok, game}
-    end
+    {:ok, card, deck} = deal_from_deck(game.deck)
+    players = List.update_at(game.players, player_index, &Map.put(&1, :held_card, card))
+    game = %Game{game | status: :last_hold, deck: deck, players: players}
+    {:ok, game}
   end
 
   def handle_event(
@@ -116,14 +127,13 @@ defmodule Golf.Games do
 
   def handle_event(
         %Game{status: :last_take} = game,
-        %GameEvent{action: :take_from_table} = event,
-        {%Player{} = player, player_index}
+        %GameEvent{action: :take_from_table},
+        {%Player{}, player_index}
       ) do
-    with take_game <- Map.put(game, :status, :take),
-         {:ok, game} <- handle_event(take_game, event, {player, player_index}),
-         game <- Map.put(game, :status, :last_hold) do
-      {:ok, game}
-    end
+    [card | table_cards] = game.table_cards
+    players = List.update_at(game.players, player_index, &Map.put(&1, :held_card, card))
+    game = %Game{game | status: :last_hold, table_cards: table_cards, players: players}
+    {:ok, game}
   end
 
   def handle_event(
@@ -135,7 +145,7 @@ defmodule Golf.Games do
     table_cards = [card | game.table_cards]
 
     {status, turn} =
-      if num_cards_face_up(player.hand) == 5 do
+      if num_cards_face_up(player.hand) == @hand_size - 1 do
         {:take, game.turn + 1}
       else
         {:flip, game.turn}

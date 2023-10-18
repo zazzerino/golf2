@@ -15,7 +15,7 @@ const Hooks: { GameCanvas?: any } = {};
 // matches a path like "/games/42"
 const GAME_URL_REGEX = /\/games\/\d+/;
 
-// if we're on a game page, setup the GameCanvas
+// if we're on a game page, load textures and setup the GameCanvas
 if (location.pathname.match(GAME_URL_REGEX)) {
   loadTextures();
   let gameContext: GameContext;

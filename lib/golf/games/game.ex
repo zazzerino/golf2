@@ -16,6 +16,8 @@ defmodule Golf.Games.Game do
     field :table_cards, {:array, :string}, default: []
     field :deleted?, :boolean, default: false
 
+    field :host_username, :string, virtual: true
+
     timestamps()
   end
 

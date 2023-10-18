@@ -19,9 +19,11 @@ defmodule GolfWeb.Router do
   scope "/", GolfWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
+    live_session :default, on_mount: GolfWeb.UserLiveAuth do
+      live "/", HomeLive
+      live "/games/:game_id", GameLive
+    end
 
-    live "/games/:game_id", GameLive
     post "/games", GameController, :create
   end
 

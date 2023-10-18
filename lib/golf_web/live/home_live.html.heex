@@ -1,0 +1,32 @@
+<h2 class="text-2xl font-bold">Golf</h2>
+
+<p class="mt-2 mb-4">
+  Logged in as: <%= @user.username %>(id=<%= @user.id %>).
+</p>
+
+<form class="mt-4 mb-8" phx-submit="change_username">
+  <label for="username">Username</label>
+  <br />
+  <input name="username" placeholder={@user.username} />
+  <br />
+  <.button type="submit">Change Username</.button>
+</form>
+
+<.button phx-click="create_game">
+  Create Game
+</.button>
+
+<div :if={not Enum.empty?(@games)}>
+  <h4 class="font-bold mt-4">Games</h4>
+  <.table id="games-table" rows={@games}>
+    <:col :let={game} label="ID"><%= game.id %></:col>
+    <:col :let={game} label="Host ID"><%= game.host_id %></:col>
+    <:col :let={game} label="Host Name"><%= game.host_username %></:col>
+    <:col :let={game} label="Created At"><%= game.inserted_at %></:col>
+    <:action :let={game}>
+      <.button phx-click="game_click" phx-value-game_id={game.id}>
+        Go To
+      </.button>
+    </:action>
+  </.table>
+</div>

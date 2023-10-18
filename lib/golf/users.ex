@@ -30,16 +30,8 @@ defmodule Golf.Users do
     |> Repo.exists?()
   end
 
-  # def get_username(user_id) do
-  #   from(u in User,
-  #     where: [id: ^user_id],
-  #     select: u.username
-  #   )
-  #   |> Repo.one()
-  # end
-
-  # def update_username(user_id, new_name) do
-  #   from(u in User, where: [id: ^user_id])
-  #   |> Repo.update_all(set: [username: new_name])
-  # end
+  def update_username(user_id, new_name) do
+    from(u in User, where: [id: ^user_id])
+    |> Repo.update_all(set: [username: new_name])
+  end
 end

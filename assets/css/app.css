@@ -4,8 +4,36 @@
 
 /* This file is for your main application CSS */
 
-#game-canvas {
+#game-canvas-wrapper {
   width: 600px;
   height: 600px;
+  position: relative;
   background-color: #2e8b57;
+}
+
+#game-turn {
+  position: absolute;
+  top: 5px;
+  left: 10px;
+  font-size: 175%;
+  color: #fc0;
+}
+
+#game-over {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -58%);
+  font-size: 700%;
+  white-space: nowrap;
+  font-weight: bold;
+  color: darkorchid;
+  text-shadow: -2px 6px #fc0;
+  animation: blink 1.5s step-start infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
 }

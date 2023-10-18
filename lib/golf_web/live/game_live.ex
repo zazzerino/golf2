@@ -1,16 +1,12 @@
 defmodule GolfWeb.GameLive do
   use GolfWeb, :live_view
 
-  alias GolfWeb.UserAuth
   alias Golf.GamesDb
   alias Golf.Games.{GameData, GameEvent, JoinRequest}
 
   @impl true
-  def mount(%{"game_id" => game_id}, session, socket) do
-    with token when is_binary(token) <- session["user_token"],
-         {:ok, _, user_id} <- UserAuth.verify(token),
-         user when is_struct(user) <- Golf.Users.get_user(user_id),
-         {game_id, _} <- Integer.parse(game_id) do
+  def mount(%{"game_id" => game_id}, _session, socket) do
+    with {game_id, _} <- Integer.parse(game_id) do
       if connected?(socket) do
         send(self(), {:load_game, game_id})
       end
@@ -18,15 +14,15 @@ defmodule GolfWeb.GameLive do
       {:ok,
        socket
        |> assign(
-         user: user,
          page_title: "Game #{game_id}",
          game_id: game_id,
          game: nil,
          player_id: nil,
-         user_is_host?: nil,
-         can_start_game?: nil,
-         can_join_game?: nil,
-         join_requests: nil
+         user_is_host?: false,
+         can_start_game?: false,
+         can_join_game?: false,
+         join_requests: [],
+         players: []
        )}
     else
       err ->
@@ -39,7 +35,7 @@ defmodule GolfWeb.GameLive do
     with user_id when is_integer(user_id) <- socket.assigns.user.id,
          game when is_struct(game) <- GamesDb.get_game(game_id),
          :ok <- subscribe(topic(game_id)) do
-      %{player_id: player_id} = game_data = GameData.from(user_id, game)
+      %{player_id: player_id, players: players} = game_data = GameData.from(user_id, game)
 
       game_is_init? = game.status == :init
       user_is_host? = game.host_id == user_id
@@ -49,11 +45,11 @@ defmodule GolfWeb.GameLive do
       join_requests =
         if game_is_init? do
           GamesDb.get_unconfirmed_join_requests(game_id)
+        else
+          []
         end
 
-      has_requested_join? =
-        join_requests && Enum.any?(join_requests, fn req -> req.user_id == user_id end)
-
+      has_requested_join? = Enum.any?(join_requests, fn req -> req.user_id == user_id end)
       can_join_game? = game_is_init? and not has_requested_join? and not user_is_playing?
 
       {:noreply,
@@ -65,7 +61,8 @@ defmodule GolfWeb.GameLive do
          user_is_host?: user_is_host?,
          can_start_game?: can_start_game?,
          can_join_game?: can_join_game?,
-         join_requests: join_requests
+         join_requests: join_requests,
+         players: players
        )}
     else
       _ ->
@@ -76,13 +73,14 @@ defmodule GolfWeb.GameLive do
   @impl true
   def handle_info({:game_started, game}, socket) do
     user_id = socket.assigns.user.id
-    game_data = GameData.from(user_id, game)
+    %{players: players} = game_data = GameData.from(user_id, game)
 
     {:noreply,
      socket
      |> push_event("game_started", %{"game" => game_data})
      |> assign(
        game: game,
+       players: players,
        can_start_game?: false,
        can_join_game?: false
      )}
@@ -106,7 +104,7 @@ defmodule GolfWeb.GameLive do
   @impl true
   def handle_info({:player_joined, game, joined_user_id}, socket) do
     user_id = socket.assigns.user.id
-    game_data = GameData.from(user_id, game)
+    %{players: players} = game_data = GameData.from(user_id, game)
 
     player_id =
       if user_id == joined_user_id do
@@ -121,18 +119,18 @@ defmodule GolfWeb.GameLive do
     {:noreply,
      socket
      |> push_event("player_joined", %{"game" => game_data, "user_id" => joined_user_id})
-     |> assign(game: game, player_id: player_id, join_requests: join_requests)}
+     |> assign(game: game, players: players, player_id: player_id, join_requests: join_requests)}
   end
 
   @impl true
   def handle_info({:game_event, game, event}, socket) do
     user_id = socket.assigns.user.id
-    game_data = GameData.from(user_id, game)
+    %{players: players} = game_data = GameData.from(user_id, game)
 
     {:noreply,
      socket
      |> push_event("game_event", %{"game" => game_data, "event" => event})
-     |> assign(game: game)}
+     |> assign(game: game, players: players)}
   end
 
   @impl true
@@ -228,6 +226,10 @@ defmodule GolfWeb.GameLive do
     end
   end
 
+  @event_to_action %{
+    "held_click" => :discard
+  }
+
   defp topic(game_id), do: "game:#{game_id}"
 
   defp subscribe(topic) do
@@ -238,6 +240,6 @@ defmodule GolfWeb.GameLive do
     Phoenix.PubSub.broadcast(Golf.PubSub, topic(game_id), msg)
   end
 
-  defp hand_action(status) when status in [:flip_2, :flip], do: :flip
   defp hand_action(:hold), do: :swap
+  defp hand_action(status) when status in [:flip_2, :flip], do: :flip
 end

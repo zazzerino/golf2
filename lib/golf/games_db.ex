@@ -2,6 +2,7 @@ defmodule Golf.GamesDb do
   import Ecto.Query
 
   require Golf.Games
+
   alias Golf.Repo
   alias Golf.Users.User
   alias Golf.Games
@@ -19,6 +20,17 @@ defmodule Golf.GamesDb do
       on: [id: p.user_id],
       order_by: p.turn,
       select: %Player{p | username: u.username}
+  end
+
+  def get_home_games() do
+    from(g in Game,
+      where: [status: :init],
+      order_by: [desc: :inserted_at],
+      join: u in User,
+      on: u.id == g.host_id,
+      select: %Game{g | host_username: u.username}
+    )
+    |> Repo.all()
   end
 
   def create_game(%User{} = host) do
@@ -139,22 +151,3 @@ defmodule Golf.GamesDb do
       select: %JoinRequest{jr | username: u.username}
   end
 end
-
-# def get_players(game_id) do
-#   players_query(game_id)
-#   |> Repo.all()
-# end
-
-# takes the updates from an Ecto.Multi and returns a
-# map %{id => player} of the players who were updated
-# defp reduce_player_updates(updates) do
-#   Enum.reduce(updates, %{}, fn {key, val}, acc ->
-#     case key do
-#       {:player, id} ->
-#         Map.put(acc, id, val)
-
-#       _ ->
-#         acc
-#     end
-#   end)
-# end

@@ -1,8 +1,12 @@
-<h2 class="text-2xl font-bold">
+<h2 class="text-2xl font-bold mb-2">
   Game <%= @game_id %>
 </h2>
 
-<div id="game-canvas" phx-hook="GameCanvas" phx-update="ignore"></div>
+<div id="game-canvas-wrapper">
+  <div id="game-canvas" phx-hook="GameCanvas" phx-update="ignore"></div>
+  <div id="game-turn" :if={@game}>Turn: <%= @game.turn %></div>
+  <div id="game-over" :if={@game && @game.status == :over}>Game Over</div>
+</div>
 
 <div class="mt-4">
   <.button :if={@can_start_game?} phx-click="start_game">

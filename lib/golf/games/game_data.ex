@@ -1,10 +1,31 @@
 defmodule Golf.Games.GameData do
   @derive {Jason.Encoder,
-           only: [:id, :status, :turn, :deck, :table_cards, :players, :player_id, :playable_cards]}
-  defstruct [:id, :status, :turn, :deck, :table_cards, :players, :player_id, :playable_cards]
+           only: [
+             :id,
+             :status,
+             :turn,
+             :deck,
+             :table_cards,
+             :players,
+             :player_id,
+             :playable_cards,
+             :current_player_id
+           ]}
+  defstruct [
+    :id,
+    :status,
+    :turn,
+    :deck,
+    :table_cards,
+    :players,
+    :player_id,
+    :playable_cards,
+    :current_player_id
+  ]
 
   def from(user_id, game) do
-    positions = hand_positions(length(game.players))
+    num_players = length(game.players)
+    positions = hand_positions(num_players)
     player_index = Enum.find_index(game.players, fn p -> p.user_id == user_id end)
 
     players =
@@ -16,12 +37,14 @@ defmodule Golf.Games.GameData do
     player_id = player && player.id
 
     playable_cards = Golf.Games.playable_cards(game, player)
+    current_player_id = Golf.Games.current_player(game, num_players).id
 
     fields =
       Map.from_struct(game)
       |> Map.put(:players, players)
       |> Map.put(:player_id, player_id)
       |> Map.put(:playable_cards, playable_cards)
+      |> Map.put(:current_player_id, current_player_id)
 
     struct(__MODULE__, fields)
   end

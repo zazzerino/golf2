@@ -28,7 +28,7 @@ const HAND_Y_PADDING = 10;
 const HAND_SIZE = 6;
 const DOWN_CARD: CardName = "2B";
 
-type CardName = string;
+type CardName = string; // always two chars (rank+suit)
 type CardPath = string;
 
 type Position = "bottom" | "left" | "top" | "right";
@@ -83,8 +83,8 @@ export interface GameEvent {
 
 type PushEvent = (action: string, data: object) => any;
 
-const RANKS = "A23456789TJQK".split("");
-const SUITS = "CDHS".split("");
+const RANKS = "A23456789TJQK";
+const SUITS = "CDHS";
 
 function cardNames() {
   const names: CardName[] = [DOWN_CARD];
@@ -112,7 +112,8 @@ function cardTextures(names: CardName[]) {
   return textures;
 }
 
-const CARD_TEXTURES = cardTextures(cardNames());
+const CARD_NAMES = cardNames();
+const CARD_TEXTURES = cardTextures(CARD_NAMES);
 
 export function loadTextures() {
   PIXI.Assets.addBundle("cards", CARD_TEXTURES);
@@ -193,7 +194,7 @@ export class GameContext {
     const texture = this.textures[DOWN_CARD];
     const sprite = makeCardSprite(texture, x, DECK_Y);
 
-    if (this.isPlayable("deck")) {
+    if (this.placeIsPlayable("deck")) {
       makePlayable(sprite, this.onDeckClick.bind(this));
     }
 
@@ -210,7 +211,7 @@ export class GameContext {
     if (card0) {
       const sprite = this.addTableCard(card0);
 
-      if (this.isPlayable("table")) {
+      if (this.placeIsPlayable("table")) {
         makePlayable(sprite, this.onTableClick.bind(this));
       }
     }
@@ -238,7 +239,7 @@ export class GameContext {
       const isUsersCard = player.id === this.game.player_id;
       const place = `hand_${i}` as Place;
 
-      if (isUsersCard && this.isPlayable(place)) {
+      if (isUsersCard && this.placeIsPlayable(place)) {
         makePlayable(sprite, () => this.onHandClick(player.id, i));
       }
 
@@ -254,7 +255,7 @@ export class GameContext {
     const coord = heldCardCoord(player.position);
     const sprite = makeCardSprite(texture, coord.x, coord.y, coord.rotation);
 
-    if (this.isPlayable("held")) {
+    if (this.placeIsPlayable("held")) {
       makePlayable(sprite, this.onHeldClick.bind(this));
     }
 
@@ -339,18 +340,18 @@ export class GameContext {
     for (let i = 0; i < handSprites.length; i++) {
       const place = `hand_${i}` as Place;
 
-      if (!this.isPlayable(place)) {
+      if (!this.placeIsPlayable(place)) {
         makeUnplayable(handSprites[i]);
       }
     }
 
     const deckSprite = this.sprites.deck;
-    if (deckSprite && this.isPlayable("deck")) {
+    if (deckSprite && this.placeIsPlayable("deck")) {
       makePlayable(deckSprite, this.onDeckClick.bind(this));
     }
 
     const tableSprite = this.sprites.tables[0];
-    if (tableSprite && this.isPlayable("table")) {
+    if (tableSprite && this.placeIsPlayable("table")) {
       makePlayable(tableSprite, this.onTableClick.bind(this));
     }
   }
@@ -374,7 +375,7 @@ export class GameContext {
 
     new Tween(heldSprite)
       .to({ x: toX, y: toY, rotation }, 800)
-      .delay(200)
+      .delay(150)
       .easing(Easing.Quadratic.InOut)
       .start();
 
@@ -490,14 +491,14 @@ export class GameContext {
       for (const sprite of this.sprites.hands[player.position]) {
         makeUnplayable(sprite);
       }
+    }
 
-      if (this.isPlayable("deck")) {
-        makePlayable(this.sprites.deck!, this.onDeckClick.bind(this));
-      }
+    if (this.placeIsPlayable("deck")) {
+      makePlayable(this.sprites.deck!, this.onDeckClick.bind(this));
+    }
 
-      if (this.isPlayable("table")) {
-        makePlayable(tableSprite, this.onTableClick.bind(this));
-      }
+    if (this.placeIsPlayable("table")) {
+      makePlayable(tableSprite, this.onTableClick.bind(this));
     }
 
     const toX = handSprite.x;
@@ -535,7 +536,6 @@ export class GameContext {
     const toX = tableSprite.x;
     const toY = tableSprite.y;
 
-
     tableSprite.x = heldSprite.x;
     tableSprite.y = heldSprite.y;
     tableSprite.rotation = playerRotation(player.position);
@@ -543,12 +543,12 @@ export class GameContext {
     this.sprites.hands[player.position].forEach((sprite, index) => {
       const place = `hand_${index}` as Place;
 
-      if (!this.isPlayable(place)) {
+      if (!this.placeIsPlayable(place)) {
         makeUnplayable(sprite);
       }
     });
 
-    if (this.isPlayable("deck")) {
+    if (this.placeIsPlayable("deck")) {
       makePlayable(this.sprites.deck!, this.onDeckClick.bind(this));
     }
 
@@ -585,7 +585,7 @@ export class GameContext {
 
   // util
 
-  isPlayable(place: Place): boolean {
+  placeIsPlayable(place: Place): boolean {
     return this.game.playable_cards.includes(place);
   }
 
@@ -716,7 +716,7 @@ function playerRotation(position: Position) {
 }
 
 function heldCardCoord(
-  position: Position, xPadding = HAND_X_PADDING, yPadding = HAND_Y_PADDING
+  position: Position, yPadding = HAND_Y_PADDING
 ) {
   let x: number;
   let y: number;
