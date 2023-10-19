@@ -46,7 +46,7 @@ defmodule GolfWeb.GameLive do
         if game_is_init? do
           GamesDb.get_unconfirmed_join_requests(game_id)
         else
-          []
+          socket.assigns.join_requests
         end
 
       has_requested_join? = Enum.any?(join_requests, fn req -> req.user_id == user_id end)
@@ -108,8 +108,9 @@ defmodule GolfWeb.GameLive do
 
     player_id =
       if user_id == joined_user_id do
-        player = Enum.find(game_data.players, fn p -> p.user_id == user_id end)
-        player && player.id
+        game_data.players
+        |> Enum.find(fn p -> p.user_id == user_id end)
+        |> Map.get(:id)
       else
         socket.assigns.player_id
       end

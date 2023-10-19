@@ -4,8 +4,18 @@
 
 <div id="game-canvas-wrapper">
   <div id="game-canvas" phx-hook="GameCanvas" phx-update="ignore"></div>
-  <div id="game-turn" :if={@game}>Turn: <%= @game.turn %></div>
-  <div id="game-over" :if={@game && @game.status == :over}>Game Over</div>
+
+  <div :if={@game} id="game-turn">
+    Turn: <%= @game.turn %>
+  </div>
+
+  <div :for={player <- @players} class={"player-data #{player.position}"}>
+    <%= player.username %>(score=<%= player.score %>)
+  </div>
+
+  <div :if={@game && @game.status == :over} id="game-over">
+    Game Over
+  </div>
 </div>
 
 <div class="mt-4">
@@ -14,7 +24,7 @@
   </.button>
 
   <.button :if={@can_join_game?} phx-click="request_join">
-    Join Game
+    Request Join
   </.button>
 </div>
 

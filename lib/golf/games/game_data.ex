@@ -34,17 +34,15 @@ defmodule Golf.Games.GameData do
       |> put_player_data(positions)
 
     player = player_index && List.first(players)
-    player_id = player && player.id
-
     playable_cards = Golf.Games.playable_cards(game, player)
-    current_player_id = Golf.Games.current_player(game, num_players).id
+    current_player = Golf.Games.current_player(game, num_players)
 
     fields =
       Map.from_struct(game)
       |> Map.put(:players, players)
-      |> Map.put(:player_id, player_id)
+      |> Map.put(:player_id, player && player.id)
       |> Map.put(:playable_cards, playable_cards)
-      |> Map.put(:current_player_id, current_player_id)
+      |> Map.put(:current_player_id, current_player && current_player.id)
 
     struct(__MODULE__, fields)
   end

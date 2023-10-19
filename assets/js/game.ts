@@ -641,11 +641,8 @@ export class GameContext {
     const toX = tableSprite.x;
     const toY = tableSprite.y;
 
-    const fromX = deckSprite.x;
-    const fromY = deckSprite.y;
-
-    tableSprite.x = fromX;
-    tableSprite.y = fromY;
+    tableSprite.x = deckSprite.x;
+    tableSprite.y = deckSprite.y;
 
     return new Tween(tableSprite)
       .to({ x: toX, y: toY }, 400)

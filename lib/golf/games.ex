@@ -241,6 +241,10 @@ defmodule Golf.Games do
     end
   end
 
+  def playable_cards(%Game{status: :last_take}, %Player{} = player) do
+    [:deck, :table] ++ face_down_cards(player.hand)
+  end
+
   def playable_cards(%Game{} = game, %Player{} = player) when is_players_turn(game, player) do
     case game.status do
       :flip ->

@@ -15,8 +15,40 @@
   position: absolute;
   top: 5px;
   left: 10px;
-  font-size: 175%;
+  font-size: 26px;
+  color: violet;
+}
+
+.player-data {
+  position: absolute;
+  font-size: 20px; 
   color: #fc0;
+}
+
+.player-data.bottom {
+  top: 98%;
+  left: 30%;
+  transform: translateX(-100%) translateY(-100%);
+}
+
+.player-data.top {
+  top: 2%;
+  left: 70%;
+  transform: translateY(-25%);
+}
+
+.player-data.left {
+  top: 10%;
+  left: 2%;
+  transform-origin: 0 100%;
+  transform: translateY(-100%) rotate(90deg);
+}
+
+.player-data.right {
+  top: 90%;
+  left: 98%;
+  transform-origin: 0 100%;
+  transform: translateY(-100%) rotate(-90deg);
 }
 
 #game-over {
