@@ -21,10 +21,9 @@ defmodule GolfWeb.Router do
 
     live_session :default, on_mount: GolfWeb.UserLiveAuth do
       live "/", HomeLive
+      live "/user", UserLive
       live "/games/:game_id", GameLive
     end
-
-    post "/games", GameController, :create
   end
 
   # Other scopes may use custom stacks.

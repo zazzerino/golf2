@@ -27,8 +27,28 @@ defmodule Golf.GamesDb do
       where: [status: :init],
       order_by: [desc: :inserted_at],
       join: u in User,
-      on: u.id == g.host_id,
+      on: [id: g.host_id],
       select: %Game{g | host_username: u.username}
+    )
+    |> Repo.all()
+  end
+
+  def get_user_games(user_id) do
+    from(u in User,
+      where: [id: ^user_id],
+      join: p in Player,
+      on: [user_id: u.id],
+      join: g in Game,
+      on: [id: p.game_id],
+      join: host in User,
+      on: [id: g.host_id],
+      select: %{
+        id: g.id,
+        inserted_at: g.inserted_at,
+        status: g.status,
+        host_id: host.id,
+        host_username: host.username
+      }
     )
     |> Repo.all()
   end

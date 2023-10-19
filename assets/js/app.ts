@@ -4,7 +4,9 @@ import "phoenix_html";
 import { Socket } from "phoenix";
 import { LiveSocket } from "phoenix_live_view";
 import topbar from "../vendor/topbar";
-import { loadTextures, GameContext, Game, GameEvent } from "./game";
+import { LOAD_TEXTURES, GameContext, Game, GameEvent } from "./game";
+
+LOAD_TEXTURES();
 
 type GameMessage = { game: Game };
 type GameEventMessage = { game: Game, event: GameEvent };
@@ -12,42 +14,35 @@ type PlayerJoinMessage = { game: Game, player_id: number };
 
 const Hooks: { GameCanvas?: any } = {};
 
-// matches a path like "/games/42"
-const GAME_URL_REGEX = /\/games\/\d+/;
+let gameContext: GameContext;
 
-// if we're on a game page, load textures and setup the GameCanvas
-if (location.pathname.match(GAME_URL_REGEX)) {
-  loadTextures();
-  let gameContext: GameContext;
+// the <div> this connects to is in game_live.html.heex
+Hooks.GameCanvas = {
+  mounted() {
+    this.handleEvent("game_loaded", (data: GameMessage) => {
+      console.log("game loaded:", data);
 
-  // the <div> this connects to is in game_live.html.heex
-  Hooks.GameCanvas = {
-    mounted() {
-      this.handleEvent("game_loaded", (data: GameMessage) => {
-        console.log("game loaded:", data);
+      gameContext = new GameContext(
+        data.game,
+        this.el,
+        this.pushEvent.bind(this)
+      );
+    });
 
-        gameContext = new GameContext(
-          data.game, 
-          this.el,
-          this.pushEvent.bind(this)
-        );
-      });
+    this.handleEvent("game_started", (data: GameMessage) => {
+      console.log("game started:", data);
+      gameContext.onGameStart(data.game);
+    });
 
-      this.handleEvent("game_started", (data: GameMessage) => {
-        console.log("game started:", data);
-        gameContext.onGameStart(data.game);
-      });
+    this.handleEvent("game_event", (data: GameEventMessage) => {
+      console.log("game event:", data);
+      gameContext.onGameEvent(data.game, data.event);
+    });
 
-      this.handleEvent("game_event", (data: GameEventMessage) => {
-        console.log("game event:", data);
-        gameContext.onGameEvent(data.game, data.event);
-      });
-
-      this.handleEvent("player_joined", (data: PlayerJoinMessage) => {
-        console.log("player joined:", data)
-        gameContext.onPlayerJoin(data.game, data.player_id);
-      });
-    }
+    this.handleEvent("player_joined", (data: PlayerJoinMessage) => {
+      console.log("player joined:", data)
+      gameContext.onPlayerJoin(data.game, data.player_id);
+    });
   }
 }
 
@@ -67,3 +62,5 @@ liveSocket.connect();
 // >> liveSocket.enableLatencySim(1000)  // enabled for duration of browser session
 // >> liveSocket.disableLatencySim()
 // window.liveSocket = liveSocket;
+
+// const GAME_URL_REGEX = /\/games\/\d+/;

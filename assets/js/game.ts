@@ -115,7 +115,7 @@ function cardTextures(names: CardName[]) {
 const CARD_NAMES = cardNames();
 const CARD_TEXTURES = cardTextures(CARD_NAMES);
 
-export function loadTextures() {
+export function LOAD_TEXTURES() {
   PIXI.Assets.addBundle("cards", CARD_TEXTURES);
   PIXI.Assets.backgroundLoadBundle("cards");
 }

@@ -2,8 +2,6 @@
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
 
-/* This file is for your main application CSS */
-
 #game-canvas-wrapper {
   width: 600px;
   height: 600px;

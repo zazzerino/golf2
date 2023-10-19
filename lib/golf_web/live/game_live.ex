@@ -25,8 +25,11 @@ defmodule GolfWeb.GameLive do
          players: []
        )}
     else
-      err ->
-        {:ok, socket |> redirect(to: ~p"/") |> put_flash(:error, "#{err}")}
+      _ ->
+        {:ok,
+         socket
+         |> redirect(to: ~p"/")
+         |> put_flash(:error, "Game #{game_id} not found.")}
     end
   end
 
@@ -226,10 +229,6 @@ defmodule GolfWeb.GameLive do
       {:noreply, assign(socket, game: game)}
     end
   end
-
-  @event_to_action %{
-    "held_click" => :discard
-  }
 
   defp topic(game_id), do: "game:#{game_id}"
 
