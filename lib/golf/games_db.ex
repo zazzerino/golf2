@@ -42,6 +42,7 @@ defmodule Golf.GamesDb do
       on: [id: p.game_id],
       join: host in User,
       on: [id: g.host_id],
+      order_by: [desc: g.inserted_at],
       select: %{
         id: g.id,
         inserted_at: g.inserted_at,

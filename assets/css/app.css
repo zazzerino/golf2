@@ -4,6 +4,13 @@ body {
   margin-top: 1rem;
   margin-left: 2rem;
   background-color: mintcream;
+  /* background-color: skyblue; */
+}
+
+#flash {
+  margin-bottom: 1.5rem;
+  /* background-color: gold; */
+  /* text-align: center; */
 }
 
 h2 {
@@ -19,6 +26,52 @@ h2 {
 .navbar li {
   list-style: none;
   margin-right: 1rem;
+}
+
+.games-table-wrapper h3 {
+  margin-top: 2rem;
+}
+
+.games-table-wrapper .nes-table-responsive {
+  height: 475px;
+  /* height: 548px; */
+  overflow: scroll;
+}
+
+#games-table {
+  background-color: violet;
+}
+
+#games-table td {
+  color: #fff;
+}
+
+.games-table-wrapper thead {
+  background-color:#108de0;
+  /* background-color: #76c442; */
+  color: #fff;
+}
+
+.game-controls {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+#join-requests-table {
+  background-color: violet;
+}
+
+#join-requests-table {
+  color: #fff;
+}
+
+.username-form {
+  margin-bottom: 2rem;
+  width: 50%;
+}
+
+.username-form button {
+  margin-top: -0.5rem;
 }
 
 #game-canvas-wrapper {
@@ -38,7 +91,7 @@ h2 {
 .player-data {
   position: absolute;
   font-size: 65%;
-  color: #fc0;
+  color:gold;
 }
 
 .player-data.bottom {
@@ -72,7 +125,6 @@ h2 {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -58%);
-  /* font-size: 700%; */
   font-size: 400%;
   white-space: nowrap;
   font-weight: bold;

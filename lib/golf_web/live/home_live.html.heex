@@ -1,16 +1,16 @@
 <div id="home-page">
   <h2>Golf</h2>
-  
+
   <p>
     Logged in as <%= @user.username %>(id=<%= @user.id %>).
   </p>
-  
+
   <.button class="nes-btn is-primary" phx-click="create_game">
     Create Game
   </.button>
-  
-  <div>
-    <h4>Public Games</h4>
+
+  <div class="games-table-wrapper">
+    <h3>Public Games</h3>
     <.table id="games-table" rows={@games}>
       <:col :let={game} label="ID"><%= game.id %></:col>
       <:col :let={game} label="Host"><%= "#{game.host_username}(id=#{game.host_id})" %></:col>

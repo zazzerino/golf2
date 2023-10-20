@@ -18,20 +18,20 @@
   </div>
 </div>
 
-<div>
+<div class="game-controls">
   <.button :if={@can_start_game?} phx-click="start_game" class="nes-btn is-primary">
     Start Game
   </.button>
 
-  <.button :if={@can_join_game?} phx-click="request_join" class="nes-btn is-warning">
+  <.button :if={@can_join_game?} phx-click="request_join" class="nes-btn is-primary">
     Request Join
   </.button>
 </div>
 
-<div :if={@game && @game.status == :init}>
-  <h4>
+<div :if={@game && @game.status == :init} class="join-requests-table-wrapper">
+  <h3>
     Join Requests
-  </h4>
+  </h3>
 
   <%= if Enum.empty?(@join_requests) do %>
     <p>No pending join requests.</p>
@@ -40,7 +40,7 @@
       <:col :let={req} label="User Id"><%= req.user_id %></:col>
       <:col :let={req} label="Username"><%= req.username %></:col>
       <:action :let={req} :if={@user_is_host?}>
-        <.button phx-click="confirm_join" phx-value-request_id={req.id}>
+        <.button phx-click="confirm_join" phx-value-request_id={req.id} class="nes-btn is-success">
           Confirm
         </.button>
       </:action>

@@ -12,6 +12,7 @@ const CARD_IMG_WIDTH = 88;
 const CARD_IMG_HEIGHT = 124;
 
 const CARD_SCALE = 0.75;
+
 const CARD_WIDTH = CARD_IMG_WIDTH * CARD_SCALE;
 const CARD_HEIGHT = CARD_IMG_HEIGHT * CARD_SCALE;
 
@@ -20,6 +21,12 @@ const DECK_X_INIT = CENTER_X;
 const DECK_X = CENTER_X - CARD_WIDTH / 2;
 const DECK_Y = CENTER_Y;
 
+/**
+The deck png has 5 pixels of cards below the top card.
+This offset lets us place cards correctly on top of the deck.
+*/
+const DECK_Y_OFFSET = -5;
+
 const TABLE_CARD_X = CENTER_X + CARD_WIDTH / 2 + 2;
 const TABLE_CARD_Y = CENTER_Y;
 
@@ -27,20 +34,23 @@ const HAND_X_PADDING = 3;
 const HAND_Y_PADDING = 10;
 
 const HAND_SIZE = 6;
+
+const DECK_CARD: CardName = "1B";
 const DOWN_CARD: CardName = "2B";
 
 const SPRITESHEET = "/images/spritesheets/cards.json";
 const HOVER_CURSOR_STYLE = "url('/images/cursor-click.png'),auto";
 
-/**
-The deck png has 5 pixels of cards below the top card.
-This offset lets us place cards correctly on top of the deck.
-*/
-const DECK_Y_OFFSET = -5;
-
 type CardName = string;
 
 type Position = "bottom" | "left" | "top" | "right";
+
+type Status = "init" | "flip_2" | "take" | "hold" | "flip" | "over";
+
+type Place = "deck" | "table" | "held"
+  | "hand_0" | "hand_1" | "hand_2" | "hand_3" | "hand_4" | "hand_5";
+
+type GameAction = "flip" | "take_from_deck" | "take_from_table" | "swap" | "discard";
 
 interface HandCard {
   name: CardName,
@@ -57,11 +67,6 @@ interface Player {
   position: Position,
   score: number,
 }
-
-type Status = "init" | "flip_2" | "take" | "hold" | "flip" | "over";
-
-type Place = "deck" | "table" | "held"
-  | "hand_0" | "hand_1" | "hand_2" | "hand_3" | "hand_4" | "hand_5";
 
 export interface Game {
   id: number,
@@ -81,8 +86,6 @@ type Sprites = {
   hands: { [p in Position]: PIXI.Sprite[] },
 };
 
-type GameAction = "flip" | "take_from_deck" | "take_from_table" | "swap" | "discard";
-
 export interface GameEvent {
   game_id: number,
   player_id: number,
@@ -99,7 +102,7 @@ export function LOAD_TEXTURES() {
 export class GameContext {
   game: Game;
   parent: HTMLElement;
-  pushEvent: PushEvent;
+  pushEvent: PushEvent; // send events to the server
 
   textures: { [key: CardName]: PIXI.Texture };
   sprites: Sprites;
@@ -168,7 +171,7 @@ export class GameContext {
   addDeck() {
     const x = deckX(this.game.status);
 
-    const texture = this.textures["1B"];
+    const texture = this.textures[DECK_CARD];
     const sprite = makeCardSprite(texture, x, DECK_Y);
 
     if (this.placeIsPlayable("deck")) {
@@ -649,8 +652,8 @@ export class GameContext {
 function makeCardSprite(texture: PIXI.Texture, x = 0, y = 0, rotation = 0) {
   const sprite = PIXI.Sprite.from(texture);
 
-  sprite.scale.set(CARD_SCALE, CARD_SCALE);
   sprite.anchor.set(0.5);
+  sprite.scale.set(CARD_SCALE, CARD_SCALE);
 
   sprite.x = x;
   sprite.y = y;

@@ -1,16 +1,17 @@
 <h2>User <%= @user.id %></h2>
 
-<form phx-submit="change_username">
-  <label for="username" class="text-xs">Username</label>
+<form class="username-form" phx-submit="change_username">
+  <div class="nes-field">
+    <label for="username" class="text-xs">Username</label>
+    <input name="username" placeholder={@user.username} class="nes-input" />
+  </div>
   <br />
-  <input name="username" placeholder={@user.username} />
-  <br />
-  <.button class="nes-btn is-warning" type="submit">Change Username</.button>
+  <.button class="nes-btn is-primary" type="submit">Change Username</.button>
 </form>
 
-<div>
+<div class="games-table-wrapper">
   <h4>User Games</h4>
-  <.table id="user-games-table" rows={@games}>
+  <.table id="games-table" rows={@games}>
     <:col :let={game} label="ID"><%= game.id %></:col>
     <:col :let={game} label="Host"><%= "#{game.host_username}(id=#{game.host_id})" %></:col>
     <:col :let={game} label="Created At"><%= game.inserted_at %></:col>

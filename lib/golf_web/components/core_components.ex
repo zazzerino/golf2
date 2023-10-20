@@ -470,7 +470,7 @@ defmodule GolfWeb.CoreComponents do
       end
 
     ~H"""
-    <div class="nes-table-responsive overflow-y-auto max-h-[550px] w-3/4">
+    <div class="nes-table-responsive overflow-y-auto max-h-[250px] w-3/4">
       <table class="nes-table mt-2">
         <thead class="text-sm text-left leading-6 text-zinc-500">
           <tr>

@@ -230,6 +230,9 @@ defmodule GolfWeb.GameLive do
     end
   end
 
+  defp hand_action(:hold), do: :swap
+  defp hand_action(status) when status in [:flip_2, :flip], do: :flip
+
   defp topic(game_id), do: "game:#{game_id}"
 
   defp subscribe(topic) do
@@ -239,7 +242,4 @@ defmodule GolfWeb.GameLive do
   defp broadcast(game_id, msg) do
     Phoenix.PubSub.broadcast(Golf.PubSub, topic(game_id), msg)
   end
-
-  defp hand_action(:hold), do: :swap
-  defp hand_action(status) when status in [:flip_2, :flip], do: :flip
 end

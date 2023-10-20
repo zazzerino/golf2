@@ -36,6 +36,7 @@ defmodule GolfWeb.HomeLive do
   def handle_event("create_game", _, socket) do
     user = socket.assigns.user
     {:ok, game} = Golf.GamesDb.create_game(user)
+    game = Map.put(game, :host_username, user.username)
     :ok = Phoenix.PubSub.broadcast(Golf.PubSub, "games", {:game_created, game})
     {:noreply, push_navigate(socket, to: ~p"/games/#{game.id}")}
   end
