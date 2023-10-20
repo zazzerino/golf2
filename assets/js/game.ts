@@ -146,11 +146,14 @@ export class GameContext {
     this.renderer = new PIXI.Renderer({
       width: GAME_WIDTH,
       height: GAME_HEIGHT,
-      backgroundColor: 0x2e8b57,
+      backgroundColor: "forestgreen",
       antialias: true,
     });
 
     this.renderer.render(this.stage);
+
+    const hoverIcon = "url('/images/cursor-click.png'),auto";
+    this.renderer.events.cursorStyles.hover = hoverIcon;
 
     Promise.resolve(PIXI.Assets.loadBundle("cards"))
       .then(textures => {
@@ -686,7 +689,7 @@ const OUTLINE_FILTER = new OutlineFilter(2, 0xff00ff);
 
 function makePlayable(sprite: PIXI.Sprite, callback: (sprite: PIXI.Sprite) => any) {
   sprite.eventMode = "static";
-  sprite.cursor = "pointer";
+  sprite.cursor = "hover"
   sprite.filters = [OUTLINE_FILTER];
 
   sprite.removeAllListeners();
@@ -695,7 +698,7 @@ function makePlayable(sprite: PIXI.Sprite, callback: (sprite: PIXI.Sprite) => an
 
 function makeUnplayable(sprite: PIXI.Sprite) {
   sprite.eventMode = "none";
-  sprite.cursor = "none";
+  sprite.cursor = "default";
   sprite.filters = [];
   sprite.removeAllListeners();
 }

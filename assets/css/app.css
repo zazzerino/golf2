@@ -1,25 +1,40 @@
-@import "tailwindcss/base";
+/* @import "tailwindcss/base";
 @import "tailwindcss/components";
-@import "tailwindcss/utilities";
+@import "tailwindcss/utilities"; */
+
+body {
+  margin-top: 1rem;
+  margin-left: 2rem;
+  background-color: deepskyblue;
+}
+
+.navbar ul {
+  margin-left: -40px;
+  display: flex;
+}
+
+.navbar li {
+  list-style: none;
+  margin-right: 1rem;
+}
 
 #game-canvas-wrapper {
   width: 600px;
   height: 600px;
   position: relative;
-  background-color: #2e8b57;
+  background-color:forestgreen;
 }
 
 #game-turn {
   position: absolute;
   top: 5px;
   left: 10px;
-  font-size: 26px;
   color: violet;
 }
 
 .player-data {
   position: absolute;
-  font-size: 20px; 
+  font-size: 65%;
   color: #fc0;
 }
 
@@ -54,7 +69,8 @@
   left: 50%;
   top: 50%;
   transform: translate(-50%, -58%);
-  font-size: 700%;
+  /* font-size: 700%; */
+  font-size: 400%;
   white-space: nowrap;
   font-weight: bold;
   color: darkorchid;

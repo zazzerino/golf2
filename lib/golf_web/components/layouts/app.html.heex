@@ -1,6 +1,6 @@
-<header class="px-4">
-  <nav>
-    <ul class="flex space-x-2">
+<header class="px-4 pb-2">
+  <nav class="navbar">
+    <ul>
       <li>
         <.link navigate={~p"/"}>Home</.link>
       </li>
@@ -11,7 +11,7 @@
   </nav>
 </header>
 
-<main class="px-4 py-1">
+<main>
   <div>
     <.flash_group flash={@flash} />
     <%= @inner_content %>

@@ -2,8 +2,6 @@ defmodule GolfWeb.HomeLive do
   use GolfWeb, :live_view
   alias Golf.GamesDb
 
-  @inserted_at_format "%y/%m/%d %H:%m:%S"
-
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket) do
@@ -23,7 +21,7 @@ defmodule GolfWeb.HomeLive do
     games =
       GamesDb.get_home_games()
       |> Enum.map(fn game ->
-        Map.update!(game, :inserted_at, &Calendar.strftime(&1, @inserted_at_format))
+        Map.update!(game, :inserted_at, &Calendar.strftime(&1, Golf.inserted_at_format()))
       end)
 
     {:noreply, assign(socket, :games, games)}

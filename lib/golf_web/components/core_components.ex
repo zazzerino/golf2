@@ -466,7 +466,7 @@ defmodule GolfWeb.CoreComponents do
       end
 
     ~H"""
-    <div class="overflow-y-auto sm:overflow-visible">
+    <div class="overflow-y-auto max-h-[550px] w-3/4">
       <table class="mt-2">
         <thead class="text-sm text-left leading-6 text-zinc-500">
           <tr>
