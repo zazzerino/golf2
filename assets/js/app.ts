@@ -6,7 +6,7 @@ import { LiveSocket } from "phoenix_live_view";
 import topbar from "../vendor/topbar";
 import { LOAD_TEXTURES, GameContext, Game, GameEvent } from "./game";
 
-LOAD_TEXTURES();
+LOAD_TEXTURES(); // runs in background
 
 type GameMessage = { game: Game };
 type GameEventMessage = { game: Game, event: GameEvent };

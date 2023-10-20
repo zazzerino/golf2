@@ -4,9 +4,10 @@ defmodule GolfWeb.UserAuth do
   alias Golf.Users
   alias Golf.Users.UserToken
 
-  @salt "_user_auth"
   @user_cookie "_golf_user"
   @cookie_options [same_site: "Lax"]
+  @salt "Mz+i2kyCSggjqftDRqgXdyOn+PIbEWVibOR0KmifubVPnyPHv1EQc4+gOiMQaNpg"
+
 
   defp sign(data) do
     Phoenix.Token.sign(GolfWeb.Endpoint, @salt, data)

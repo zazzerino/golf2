@@ -471,7 +471,7 @@ defmodule GolfWeb.CoreComponents do
 
     ~H"""
     <div class="nes-table-responsive overflow-y-auto max-h-[250px] w-3/4">
-      <table class="nes-table mt-2">
+      <table class="nes-table">
         <thead class="text-sm text-left leading-6 text-zinc-500">
           <tr>
             <th :for={col <- @col} class="p-0 pr-6 pb-4 font-normal"><%= col[:label] %></th>

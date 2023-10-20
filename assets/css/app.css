@@ -3,14 +3,12 @@
 body {
   margin-top: 1rem;
   margin-left: 2rem;
+  margin-right: 2rem;
   background-color: mintcream;
-  /* background-color: skyblue; */
 }
 
 #flash {
   margin-bottom: 1.5rem;
-  /* background-color: gold; */
-  /* text-align: center; */
 }
 
 h2 {
@@ -34,8 +32,11 @@ h2 {
 
 .games-table-wrapper .nes-table-responsive {
   height: 475px;
-  /* height: 548px; */
   overflow: scroll;
+}
+
+.games-table-wrapper table {
+  border: 3px solid;
 }
 
 #games-table {
@@ -44,6 +45,8 @@ h2 {
 
 #games-table td {
   color: #fff;
+  /* font-size: 70%; */
+  /* font-size: 8px; */
 }
 
 .games-table-wrapper thead {
@@ -57,11 +60,22 @@ h2 {
   margin-bottom: 1rem;
 }
 
-#join-requests-table {
-  background-color: violet;
+.join-requests-table-wrapper {
+  margin-bottom: 2rem;
+}
+
+.join-requests-table-wrapper table {
+  border: 3px solid;
+}
+
+.join-requests-table-wrapper thead {
+  background-color:#108de0;
+  /* background-color: #76c442; */
+  color: #fff;
 }
 
 #join-requests-table {
+  background-color: violet;
   color: #fff;
 }
 

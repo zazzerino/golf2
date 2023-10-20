@@ -170,7 +170,6 @@ export class GameContext {
 
   addDeck() {
     const x = deckX(this.game.status);
-
     const texture = this.textures[DECK_CARD];
     const sprite = makeCardSprite(texture, x, DECK_Y);
 
@@ -338,31 +337,14 @@ export class GameContext {
 
   onTakeFromDeck(event: GameEvent) {
     const player = this.findPlayer(event.player_id)!;
-
+    
     this.addHeldCard(player);
-    const heldSprite = this.sprites.held!;
-
-    const toX = heldSprite.x;
-    const toY = heldSprite.y;
-
-    const deckSprite = this.sprites.deck!;
-
-    heldSprite.x = deckSprite.x;
-    heldSprite.y = deckSprite.y + DECK_Y_OFFSET;
-    heldSprite.rotation = 0;
-
-    const rotation = playerRotation(player.position);
-
-    new Tween(heldSprite)
-      .to({ x: toX, y: toY, rotation }, 800)
-      .delay(150)
-      .easing(Easing.Quadratic.InOut)
-      .start();
+    this.tweenHeldFromDeck(player.position).start();
 
     const isUsersEvent = player.id === this.game.player_id;
 
     if (isUsersEvent) {
-      makeUnplayable(deckSprite);
+      makeUnplayable(this.sprites.deck!);
 
       const tableSprite = this.sprites.tables[0];
       if (tableSprite) makeUnplayable(tableSprite);
@@ -377,26 +359,10 @@ export class GameContext {
 
   onTakeFromTable(event: GameEvent) {
     const player = this.findPlayer(event.player_id)!;
-
     this.addHeldCard(player);
-    const heldSprite = this.sprites.held!;
 
-    const toX = heldSprite.x;
-    const toY = heldSprite.y;
-
-    const tableSprite = this.sprites.tables.shift()!;
-
-    heldSprite.x = tableSprite.x;
-    heldSprite.y = tableSprite.y;
-    heldSprite.rotation = 0;
-
-    const rotation = playerRotation(player.position);
-
-    new Tween(heldSprite)
-      .onStart(() => tableSprite.visible = false)
-      .to({ x: toX, y: toY, rotation }, 800)
-      .easing(Easing.Quadratic.InOut)
-      .start();
+    const [tableSprite, heldTween] = this.tweenHeldFromTable(player.position);
+    heldTween.start();
 
     const isUsersEvent = player.id === this.game.player_id;
 
@@ -465,22 +431,6 @@ export class GameContext {
       }
     }
 
-    const isUsersEvent = player.id === this.game.player_id;
-
-    if (isUsersEvent) {
-      for (const sprite of this.sprites.hands[player.position]) {
-        makeUnplayable(sprite);
-      }
-    }
-
-    if (this.placeIsPlayable("deck")) {
-      makePlayable(this.sprites.deck!, this.onDeckClick.bind(this));
-    }
-
-    if (this.placeIsPlayable("table")) {
-      makePlayable(tableSprite, this.onTableClick.bind(this));
-    }
-
     const toX = handSprite.x;
     const toY = handSprite.y;
 
@@ -502,23 +452,29 @@ export class GameContext {
       .easing(Easing.Quadratic.InOut)
       .delay(200)
       .start();
+
+    const isUsersEvent = player.id === this.game.player_id;
+
+    if (isUsersEvent) {
+      for (const sprite of this.sprites.hands[player.position]) {
+        makeUnplayable(sprite);
+      }
+    }
+
+    if (this.placeIsPlayable("deck")) {
+      makePlayable(this.sprites.deck!, this.onDeckClick.bind(this));
+    }
+
+    if (this.placeIsPlayable("table")) {
+      makePlayable(tableSprite, this.onTableClick.bind(this));
+    }
   }
 
   onDiscard(event: GameEvent) {
     const player = this.findPlayer(event.player_id)!;
     
     this.addTableCards();
-    const tableSprite = this.sprites.tables[0]!;
-
-    const heldSprite = this.sprites.held!;
-    heldSprite.visible = false;
-
-    const toX = tableSprite.x;
-    const toY = tableSprite.y;
-
-    tableSprite.x = heldSprite.x;
-    tableSprite.y = heldSprite.y;
-    tableSprite.rotation = playerRotation(player.position);
+    this.tweenTableDiscard(player.position).start();
 
     this.sprites.hands[player.position].forEach((sprite, index) => {
       const place = `hand_${index}` as Place;
@@ -531,11 +487,6 @@ export class GameContext {
     if (this.placeIsPlayable("deck")) {
       makePlayable(this.sprites.deck!, this.onDeckClick.bind(this));
     }
-
-    new Tween(tableSprite)
-      .to({ x: toX, y: toY, rotation: 0 }, 800)
-      .easing(Easing.Quadratic.InOut)
-      .start();
   }
 
   // events from client
@@ -632,6 +583,7 @@ export class GameContext {
   tweenWiggle(sprite: PIXI.Sprite, duration = 150, distance = 1, repeats = 2) {
     const startX = sprite.x;
 
+    // go back to the start after wiggling
     const tweenReturn = new Tween(sprite)
       .to({ x: startX }, duration / 2)
       .easing(Easing.Quadratic.Out);
@@ -639,11 +591,72 @@ export class GameContext {
     sprite.x = startX - distance;
 
     return new Tween(sprite)
-      .to({ x: startX + distance }, duration / 2)
+      .to({ x: startX + distance }, duration / repeats)
       .easing(Easing.Quintic.InOut)
       .repeat(repeats)
       .yoyo(true)
       .chain(tweenReturn);
+  }
+
+  tweenHeldFromDeck(position: Position) {
+    const heldSprite = this.sprites.held!;
+    
+    const toX = heldSprite.x;
+    const toY = heldSprite.y;
+
+    const deckSprite = this.sprites.deck!;
+
+    heldSprite.x = deckSprite.x;
+    heldSprite.y = deckSprite.y + DECK_Y_OFFSET;
+    heldSprite.rotation = 0;
+
+    const rotation = playerRotation(position);
+
+    return new Tween(heldSprite)
+      .to({ x: toX, y: toY, rotation }, 800)
+      .delay(150)
+      .easing(Easing.Quadratic.InOut);
+  }
+
+  tweenHeldFromTable(position: Position): [PIXI.Sprite, Tween<PIXI.Sprite>] {
+    const heldSprite = this.sprites.held!;
+
+    const toX = heldSprite.x;
+    const toY = heldSprite.y;
+
+    const tableSprite = this.sprites.tables.shift()!;
+
+    heldSprite.x = tableSprite.x;
+    heldSprite.y = tableSprite.y;
+    heldSprite.rotation = 0;
+
+    const rotation = playerRotation(position);
+
+    const tween =  new Tween(heldSprite)
+      .onStart(() => tableSprite.visible = false)
+      .to({ x: toX, y: toY, rotation }, 800)
+      .easing(Easing.Quadratic.InOut);
+
+    return [tableSprite, tween];
+  }
+
+  tweenTableDiscard(position: Position) {
+    const tableSprite = this.sprites.tables[0]!;
+
+    const heldSprite = this.sprites.held!;
+    heldSprite.visible = false;
+
+    const toX = tableSprite.x;
+    const toY = tableSprite.y;
+
+    tableSprite.x = heldSprite.x;
+    tableSprite.y = heldSprite.y;
+    tableSprite.rotation = playerRotation(position);
+
+
+    return new Tween(tableSprite)
+      .to({ x: toX, y: toY, rotation: 0 }, 800)
+      .easing(Easing.Quadratic.InOut)
   }
 }
 

@@ -1,6 +1,5 @@
 defmodule GolfWeb.HomeLive do
   use GolfWeb, :live_view
-  alias Golf.GamesDb
 
   @impl true
   def mount(_params, _session, socket) do
@@ -19,7 +18,7 @@ defmodule GolfWeb.HomeLive do
   @impl true
   def handle_info(:load_games, socket) do
     games =
-      GamesDb.get_home_games()
+      Golf.GamesDb.get_home_games()
       |> Enum.map(fn game ->
         Map.update!(game, :inserted_at, &Calendar.strftime(&1, Golf.inserted_at_format()))
       end)

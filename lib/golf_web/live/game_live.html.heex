@@ -39,8 +39,13 @@
     <.table id="join-requests-table" rows={@join_requests}>
       <:col :let={req} label="User Id"><%= req.user_id %></:col>
       <:col :let={req} label="Username"><%= req.username %></:col>
-      <:action :let={req} :if={@user_is_host?}>
-        <.button phx-click="confirm_join" phx-value-request_id={req.id} class="nes-btn is-success">
+      <:action :let={req}>
+        <.button
+          :if={@user_is_host?}
+          phx-click="confirm_join"
+          phx-value-request_id={req.id}
+          class="nes-btn is-success"
+        >
           Confirm
         </.button>
       </:action>
