@@ -1,23 +1,25 @@
-<h2 class="text-2xl font-bold">Golf</h2>
-
-<p class="mt-2 mb-4">
-  Logged in as <%= @user.username %>(id=<%= @user.id %>).
-</p>
-
-<.button phx-click="create_game">
-  Create Game
-</.button>
-
-<div>
-  <h4 class="font-bold mt-4">Public Games</h4>
-  <.table id="public-games-table" rows={@games}>
-    <:col :let={game} label="ID"><%= game.id %></:col>
-    <:col :let={game} label="Host"><%= "#{game.host_username}(id=#{game.host_id})" %></:col>
-    <:col :let={game} label="Created At"><%= game.inserted_at %></:col>
-    <:action :let={game}>
-      <.button phx-click="game_click" phx-value-game_id={game.id}>
-        Go To
-      </.button>
-    </:action>
-  </.table>
+<div id="home-page">
+  <h2>Golf</h2>
+  
+  <p>
+    Logged in as <%= @user.username %>(id=<%= @user.id %>).
+  </p>
+  
+  <.button class="nes-btn is-primary" phx-click="create_game">
+    Create Game
+  </.button>
+  
+  <div>
+    <h4>Public Games</h4>
+    <.table id="games-table" rows={@games}>
+      <:col :let={game} label="ID"><%= game.id %></:col>
+      <:col :let={game} label="Host"><%= "#{game.host_username}(id=#{game.host_id})" %></:col>
+      <:col :let={game} label="Created At"><%= game.inserted_at %></:col>
+      <:action :let={game}>
+        <.button phx-click="game_click" phx-value-game_id={game.id} class="nes-btn is-success">
+          Go To
+        </.button>
+      </:action>
+    </.table>
+  </div>
 </div>

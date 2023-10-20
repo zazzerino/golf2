@@ -1,11 +1,14 @@
-/* @import "tailwindcss/base";
-@import "tailwindcss/components";
-@import "tailwindcss/utilities"; */
+@import "../vendor/nes.css";
 
 body {
   margin-top: 1rem;
   margin-left: 2rem;
-  background-color: deepskyblue;
+  background-color: mintcream;
+}
+
+h2 {
+  margin-bottom: 1rem;
+  font-size: 24pt;
 }
 
 .navbar ul {

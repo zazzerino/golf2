@@ -7,7 +7,8 @@ defmodule GolfWeb.UserLive do
       send(self(), :load_games)
     end
 
-    {:ok, assign(socket, page_title: "User", games: [])}
+    user_id = socket.assigns.user.id
+    {:ok, assign(socket, page_title: "User #{user_id}", games: [])}
   end
 
   @impl true

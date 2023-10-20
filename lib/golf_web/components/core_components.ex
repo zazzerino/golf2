@@ -125,8 +125,12 @@ defmodule GolfWeb.CoreComponents do
         <%= @title %>
       </p>
       <p class="mt-2 text-sm leading-5"><%= msg %></p>
-      <button type="button" class="group absolute top-1 right-1 p-2" aria-label={gettext("close")}>
-        <.icon name="hero-x-mark-solid" class="h-5 w-5 opacity-40 group-hover:opacity-70" />
+      <button
+        type="button"
+        class="nes-btn is-error group absolute top-1 right-1 p-2"
+        aria-label={gettext("close")}
+      >
+        <.icon name="hero-x-mark-solid" class="h-5 w-5 opacity-40 group-hover:opacity-70" /> Close
       </button>
     </div>
     """
@@ -466,8 +470,8 @@ defmodule GolfWeb.CoreComponents do
       end
 
     ~H"""
-    <div class="overflow-y-auto max-h-[550px] w-3/4">
-      <table class="mt-2">
+    <div class="nes-table-responsive overflow-y-auto max-h-[550px] w-3/4">
+      <table class="nes-table mt-2">
         <thead class="text-sm text-left leading-6 text-zinc-500">
           <tr>
             <th :for={col <- @col} class="p-0 pr-6 pb-4 font-normal"><%= col[:label] %></th>

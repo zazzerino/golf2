@@ -8,14 +8,15 @@ const GAME_HEIGHT = 600;
 const CENTER_X = GAME_WIDTH / 2;
 const CENTER_Y = GAME_HEIGHT / 2;
 
-const CARD_SVG_WIDTH = 240;
-const CARD_SVG_HEIGHT = 336;
+const CARD_IMG_WIDTH = 88;
+const CARD_IMG_HEIGHT = 124;
 
-const CARD_SCALE = 0.25;
-const CARD_WIDTH = CARD_SVG_WIDTH * CARD_SCALE;
-const CARD_HEIGHT = CARD_SVG_HEIGHT * CARD_SCALE;
+const CARD_SCALE = 0.75;
+const CARD_WIDTH = CARD_IMG_WIDTH * CARD_SCALE;
+const CARD_HEIGHT = CARD_IMG_HEIGHT * CARD_SCALE;
 
 const DECK_X_INIT = CENTER_X;
+
 const DECK_X = CENTER_X - CARD_WIDTH / 2;
 const DECK_Y = CENTER_Y;
 
@@ -28,8 +29,16 @@ const HAND_Y_PADDING = 10;
 const HAND_SIZE = 6;
 const DOWN_CARD: CardName = "2B";
 
-type CardName = string; // always two chars (rank+suit)
-type CardPath = string;
+const SPRITESHEET = "/images/spritesheets/cards.json";
+const HOVER_CURSOR_STYLE = "url('/images/cursor-click.png'),auto";
+
+/**
+The deck png has 5 pixels of cards below the top card.
+This offset lets us place cards correctly on top of the deck.
+*/
+const DECK_Y_OFFSET = -5;
+
+type CardName = string;
 
 type Position = "bottom" | "left" | "top" | "right";
 
@@ -83,41 +92,8 @@ export interface GameEvent {
 
 type PushEvent = (action: string, data: object) => any;
 
-const RANKS = "A23456789TJQK";
-const SUITS = "CDHS";
-
-function cardNames() {
-  const names: CardName[] = [DOWN_CARD];
-
-  for (const rank of RANKS) {
-    for (const suit of SUITS) {
-      names.push(rank + suit);
-    }
-  }
-
-  return names;
-}
-
-function cardPath(name: CardName) {
-  return `/images/cards/${name}.svg`
-}
-
-function cardTextures(names: CardName[]) {
-  const textures: { [key: CardName]: CardPath } = {};
-
-  for (const name of names) {
-    textures[name] = cardPath(name);
-  }
-
-  return textures;
-}
-
-const CARD_NAMES = cardNames();
-const CARD_TEXTURES = cardTextures(CARD_NAMES);
-
 export function LOAD_TEXTURES() {
-  PIXI.Assets.addBundle("cards", CARD_TEXTURES);
-  PIXI.Assets.backgroundLoadBundle("cards");
+  PIXI.Assets.backgroundLoad(SPRITESHEET);
 }
 
 export class GameContext {
@@ -151,18 +127,16 @@ export class GameContext {
     });
 
     this.renderer.render(this.stage);
+    this.renderer.events.cursorStyles.hover = HOVER_CURSOR_STYLE;
 
-    const hoverIcon = "url('/images/cursor-click.png'),auto";
-    this.renderer.events.cursorStyles.hover = hoverIcon;
-
-    Promise.resolve(PIXI.Assets.loadBundle("cards"))
-      .then(textures => {
-        this.textures = textures;
+    PIXI.Assets.load([SPRITESHEET])
+      .then(assets => {
+        this.textures = assets[SPRITESHEET].textures;
         
         this.parent.appendChild(this.renderer.view as any);
-        
         this.addSprites();
         this.renderer.render(this.stage);
+        
         requestAnimationFrame(time => this.drawLoop(time));
       });
   }
@@ -194,7 +168,7 @@ export class GameContext {
   addDeck() {
     const x = deckX(this.game.status);
 
-    const texture = this.textures[DOWN_CARD];
+    const texture = this.textures["1B"];
     const sprite = makeCardSprite(texture, x, DECK_Y);
 
     if (this.placeIsPlayable("deck")) {
@@ -371,7 +345,7 @@ export class GameContext {
     const deckSprite = this.sprites.deck!;
 
     heldSprite.x = deckSprite.x;
-    heldSprite.y = deckSprite.y;
+    heldSprite.y = deckSprite.y + DECK_Y_OFFSET;
     heldSprite.rotation = 0;
 
     const rotation = playerRotation(player.position);
@@ -609,7 +583,7 @@ export class GameContext {
       const toY = cardSprite.y;
 
       cardSprite.x = DECK_X_INIT;
-      cardSprite.y = DECK_Y;
+      cardSprite.y = DECK_Y + DECK_Y_OFFSET;
       cardSprite.rotation = 0;
 
       const rotation = playerRotation(position);
@@ -685,12 +659,12 @@ function makeCardSprite(texture: PIXI.Texture, x = 0, y = 0, rotation = 0) {
   return sprite;
 }
 
-const OUTLINE_FILTER = new OutlineFilter(2, 0xff00ff);
+const PLAYABLE_FILTER = new OutlineFilter(2, 0xff00ff, 1.0);
 
 function makePlayable(sprite: PIXI.Sprite, callback: (sprite: PIXI.Sprite) => any) {
   sprite.eventMode = "static";
   sprite.cursor = "hover"
-  sprite.filters = [OUTLINE_FILTER];
+  sprite.filters = [PLAYABLE_FILTER];
 
   sprite.removeAllListeners();
   sprite.on("pointerdown", event => callback(event.currentTarget as PIXI.Sprite));
@@ -889,7 +863,3 @@ function handCardCoord(
 function toRadians(degrees) {
   return degrees * (Math.PI / 180);
 }
-
-// function randRange(min, max) {
-//   return Math.floor(Math.random() * (max - min + 1) + min);
-// }

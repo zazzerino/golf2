@@ -1,21 +1,21 @@
-<h2 class="text-2xl font-bold">User <%= @user.id %></h2>
+<h2>User <%= @user.id %></h2>
 
-<form class="mt-4 mb-8" phx-submit="change_username">
+<form phx-submit="change_username">
   <label for="username" class="text-xs">Username</label>
   <br />
   <input name="username" placeholder={@user.username} />
   <br />
-  <.button class="mt-2" type="submit">Change Username</.button>
+  <.button class="nes-btn is-warning" type="submit">Change Username</.button>
 </form>
 
 <div>
-  <h4 class="font-bold mt-4">User Games</h4>
+  <h4>User Games</h4>
   <.table id="user-games-table" rows={@games}>
     <:col :let={game} label="ID"><%= game.id %></:col>
     <:col :let={game} label="Host"><%= "#{game.host_username}(id=#{game.host_id})" %></:col>
     <:col :let={game} label="Created At"><%= game.inserted_at %></:col>
     <:action :let={game}>
-      <.button phx-click="game_click" phx-value-game_id={game.id}>
+      <.button phx-click="game_click" phx-value-game_id={game.id} class="nes-btn is-success">
         Go To
       </.button>
     </:action>

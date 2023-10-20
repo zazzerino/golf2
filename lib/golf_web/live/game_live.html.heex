@@ -1,4 +1,4 @@
-<h2 class="text-2xl font-bold mb-2">
+<h2>
   Game <%= @game_id %>
 </h2>
 
@@ -18,23 +18,23 @@
   </div>
 </div>
 
-<div class="mt-4">
-  <.button :if={@can_start_game?} phx-click="start_game">
+<div>
+  <.button :if={@can_start_game?} phx-click="start_game" class="nes-btn is-primary">
     Start Game
   </.button>
 
-  <.button :if={@can_join_game?} phx-click="request_join">
+  <.button :if={@can_join_game?} phx-click="request_join" class="nes-btn is-warning">
     Request Join
   </.button>
 </div>
 
-<div :if={@game && @game.status == :init} class="mt-4">
-  <h4 class="text-lg font-bold">
+<div :if={@game && @game.status == :init}>
+  <h4>
     Join Requests
   </h4>
 
   <%= if Enum.empty?(@join_requests) do %>
-    <p class="text-sm">No pending join requests.</p>
+    <p>No pending join requests.</p>
   <% else %>
     <.table id="join-requests-table" rows={@join_requests}>
       <:col :let={req} label="User Id"><%= req.user_id %></:col>
