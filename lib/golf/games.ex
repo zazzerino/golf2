@@ -1,6 +1,6 @@
 defmodule Golf.Games do
   alias Golf.Users.User
-  alias Golf.Games.{Game, Player, GameEvent}
+  alias Golf.Games.{Game, Player, GameEvent, Tourney}
 
   @card_names for rank <- ~w(A 2 3 4 5 6 7 8 9 T J Q K),
                   suit <- ~w(C D H S),
@@ -28,10 +28,34 @@ defmodule Golf.Games do
 
     %Game{
       host_id: host.id,
+      host_username: host.username,
       deck: new_shuffled_deck(),
       players: [player]
     }
   end
+
+  def create_tourney(%User{} = host, num_rounds) do
+    game = create_game(host)
+
+    %Tourney{
+      host_id: host.id,
+      host_username: host.username,
+      num_rounds: num_rounds,
+      games: [game]
+    }
+  end
+
+  # def start_next_game(%Tourney{} = t) do
+  #   num_games = length(t.games)
+  #   last_game = Enum.at(t.games, num_games - 1)
+
+  #   players =
+  #     for p <- last_game.players do
+  #       Map.take(p, [:id, :user_id, :username, :turn])
+  #     end
+
+  #   %Tourney{t | num_rounds: t.num_rounds + 1}
+  # end
 
   def start_game(%Game{status: :init} = game) do
     # deal hands to players

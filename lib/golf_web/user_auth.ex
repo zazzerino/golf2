@@ -8,7 +8,6 @@ defmodule GolfWeb.UserAuth do
   @cookie_options [same_site: "Lax"]
   @salt "Mz+i2kyCSggjqftDRqgXdyOn+PIbEWVibOR0KmifubVPnyPHv1EQc4+gOiMQaNpg"
 
-
   defp sign(data) do
     Phoenix.Token.sign(GolfWeb.Endpoint, @salt, data)
   end

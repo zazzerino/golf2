@@ -1,0 +1,89 @@
+<div class="game-page">
+  <h2>
+    Game <%= @game_id %>
+  </h2>
+
+  <div id="game-canvas-wrapper">
+    <div id="game-canvas" phx-hook="GameCanvas" phx-update="ignore"></div>
+
+    <div :if={@game} id="game-turn">
+      Turn: <%= @game.turn %>
+    </div>
+
+    <div :for={player <- @players} class={"player-data #{player.position}"}>
+      <%= player.username %>(score=<%= player.score %>)
+    </div>
+
+    <div :if={@game && @game.status == :over} id="game-over">
+      Game Over
+    </div>
+  </div>
+
+  <div :if={@game} class="game-controls">
+    <.button :if={@can_start_game?} phx-click="start_game" class="nes-btn is-primary">
+      Start Game
+    </.button>
+
+    <.button :if={@can_join_game?} phx-click="request_join" class="nes-btn is-primary">
+      Request Join
+    </.button>
+
+    <.button
+      :if={Map.get(@game, :tourney_id)}
+      phx-click="tourney_click"
+      phx-value-tourney-id={@game.tourney_id}
+      class="nes-btn is-primary"
+    >
+      Go To Tourney
+    </.button>
+  </div>
+
+  <div id="chat-messages-wrapper">
+    <h3>Messages</h3>
+    <ul id="chat-messages" phx-update="stream">
+      <li :for={{dom_id, msg} <- @streams.chat_messages} id={dom_id}>
+        <%= "#{msg.player_id}: #{msg.text}" %>
+      </li>
+    </ul>
+    <form :if={@player_id} phx-submit="submit_chat_msg">
+      <div class="nes-field">
+        <input
+          type="text"
+          id="chat-msg-input"
+          class="nes-input"
+          name="text"
+          placeholder="Type chat message here..."
+          required
+        />
+      </div>
+      <button type="submit" class="nes-btn is-primary">Submit</button>
+    </form>
+  </div>
+
+  <div :if={@game && @game.status == :init} class="join-requests-table-wrapper">
+    <h3>Join Requests</h3>
+
+    <%= if Enum.empty?(@join_requests) do %>
+      <p>No pending join requests.</p>
+    <% else %>
+      <.table id="join-requests-table" rows={@join_requests}>
+        <:col :let={req} label="User Id">
+          <%= req.user_id %>
+        </:col>
+        <:col :let={req} label="Username">
+          <%= req.username %>
+        </:col>
+        <:action :let={req}>
+          <.button
+            :if={@user_is_host?}
+            phx-click="confirm_join"
+            phx-value-request_id={req.id}
+            class="nes-btn is-success"
+          >
+            Confirm
+          </.button>
+        </:action>
+      </.table>
+    <% end %>
+  </div>
+</div>

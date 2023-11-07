@@ -6,7 +6,7 @@ defmodule Golf.GamesDb do
   alias Golf.Repo
   alias Golf.Users.User
   alias Golf.Games
-  alias Golf.Games.{Game, Player, GameEvent, JoinRequest}
+  alias Golf.Games.{Game, Player, GameEvent, JoinRequest, Tourney, ChatMsg}
 
   def get_game(game_id) do
     Repo.get(Game, game_id)
@@ -33,6 +33,11 @@ defmodule Golf.GamesDb do
     |> Repo.all()
   end
 
+  def get_tourney(tourney_id) do
+    Repo.get(Tourney, tourney_id)
+    |> Repo.preload(:games)
+  end
+
   def get_user_games(user_id) do
     from(u in User,
       where: [id: ^user_id],
@@ -52,6 +57,27 @@ defmodule Golf.GamesDb do
       }
     )
     |> Repo.all()
+  end
+
+  def get_chat_messages(game_id) do
+    from(cm in ChatMsg, where: [game_id: ^game_id])
+    |> Repo.all()
+  end
+
+  def insert_chat_message(%ChatMsg{} = chat_msg) do
+    chat_msg
+    |> ChatMsg.changeset()
+    |> Repo.insert()
+  end
+
+  @default_tourney_opts [num_rounds: 4]
+
+  def create_tourney(%User{} = host, opts \\ []) do
+    opts = Keyword.merge(@default_tourney_opts, opts)
+
+    Games.create_tourney(host, opts[:num_rounds])
+    |> Tourney.changeset()
+    |> Repo.insert()
   end
 
   def create_game(%User{} = host) do

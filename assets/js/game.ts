@@ -2,6 +2,22 @@ import * as PIXI from "pixi.js";
 import { Tween, Easing, update as TWEEN_UPDATE } from "@tweenjs/tween.js";
 import { OutlineFilter } from "@pixi/filter-outline";
 
+window.addEventListener("phx:chat-message-submitted", _ => {
+  const chatMsgInputEl = document.querySelector("#chat-msg-input");
+  if (chatMsgInputEl) {
+    chatMsgInputEl.innerHTML = "";
+  }
+
+
+});
+
+window.addEventListener("phx:chat-msg-recv", _ => {
+  const chatMessagesEl = document.querySelector("#chat-messages");
+  if (chatMessagesEl) {
+    chatMessagesEl.scrollTo(0, chatMessagesEl.scrollHeight);
+  }
+});
+
 const GAME_WIDTH = 600;
 const GAME_HEIGHT = 600;
 
@@ -135,11 +151,11 @@ export class GameContext {
     PIXI.Assets.load([SPRITESHEET])
       .then(assets => {
         this.textures = assets[SPRITESHEET].textures;
-        
+
         this.parent.appendChild(this.renderer.view as any);
         this.addSprites();
         this.renderer.render(this.stage);
-        
+
         requestAnimationFrame(time => this.drawLoop(time));
       });
   }
@@ -337,7 +353,7 @@ export class GameContext {
 
   onTakeFromDeck(event: GameEvent) {
     const player = this.findPlayer(event.player_id)!;
-    
+
     this.addHeldCard(player);
     this.tweenHeldFromDeck(player.position).start();
 
@@ -384,17 +400,14 @@ export class GameContext {
     const player = this.findPlayer(event.player_id)!;
     const index = event.hand_index!;
 
-    const heldSprite = this.sprites.held!;
-    this.sprites.held = undefined;
-
     const handCard = player.hand[index].name;
     const handSprite = this.sprites.hands[player.position][index];
-    
+
     handSprite.visible = false;
     handSprite.texture = this.textures[handCard];
 
-    const tableCard = this.game.table_cards[0];
     let tableSprite = this.sprites.tables[0];
+    const tableCard = this.game.table_cards[0];
 
     if (tableCard) {
       const firstTexture = this.textures[tableCard];
@@ -431,27 +444,7 @@ export class GameContext {
       }
     }
 
-    const toX = handSprite.x;
-    const toY = handSprite.y;
-
-    tableSprite.x = toX;
-    tableSprite.y = toY;
-    tableSprite.rotation = playerRotation(player.position);
-
-    new Tween(heldSprite)
-      .to({ x: toX, y: toY }, 500)
-      .easing(Easing.Quadratic.InOut)
-      .onComplete(obj => {
-        obj.visible = false;
-        handSprite.visible = true;
-      })
-      .start();
-
-    new Tween(tableSprite)
-      .to({ x: TABLE_CARD_X, y: TABLE_CARD_Y, rotation: 0 }, 700)
-      .easing(Easing.Quadratic.InOut)
-      .delay(200)
-      .start();
+    this.tweenSwapHeldTable(player.position, handSprite, tableSprite);
 
     const isUsersEvent = player.id === this.game.player_id;
 
@@ -472,7 +465,7 @@ export class GameContext {
 
   onDiscard(event: GameEvent) {
     const player = this.findPlayer(event.player_id)!;
-    
+
     this.addTableCards();
     this.tweenTableDiscard(player.position).start();
 
@@ -600,7 +593,7 @@ export class GameContext {
 
   tweenHeldFromDeck(position: Position) {
     const heldSprite = this.sprites.held!;
-    
+
     const toX = heldSprite.x;
     const toY = heldSprite.y;
 
@@ -632,7 +625,7 @@ export class GameContext {
 
     const rotation = playerRotation(position);
 
-    const tween =  new Tween(heldSprite)
+    const tween = new Tween(heldSprite)
       .onStart(() => tableSprite.visible = false)
       .to({ x: toX, y: toY, rotation }, 800)
       .easing(Easing.Quadratic.InOut);
@@ -653,10 +646,35 @@ export class GameContext {
     tableSprite.y = heldSprite.y;
     tableSprite.rotation = playerRotation(position);
 
-
     return new Tween(tableSprite)
       .to({ x: toX, y: toY, rotation: 0 }, 800)
       .easing(Easing.Quadratic.InOut)
+  }
+
+  tweenSwapHeldTable(position: Position, handSprite: any, tableSprite: any) {
+    const heldSprite = this.sprites.held!;
+
+    const toX = handSprite.x;
+    const toY = handSprite.y;
+
+    tableSprite.x = toX;
+    tableSprite.y = toY;
+    tableSprite.rotation = playerRotation(position);
+
+    new Tween(heldSprite)
+      .to({ x: toX, y: toY }, 500)
+      .easing(Easing.Quadratic.InOut)
+      .onComplete(obj => {
+        obj.visible = false;
+        handSprite.visible = true;
+      })
+      .start();
+
+    new Tween(tableSprite)
+      .to({ x: TABLE_CARD_X, y: TABLE_CARD_Y, rotation: 0 }, 700)
+      .easing(Easing.Quadratic.InOut)
+      .delay(200)
+      .start();
   }
 }
 

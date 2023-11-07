@@ -1,0 +1,27 @@
+<div class="tourney-page">
+  <h2>Tourney</h2>
+
+  <div :if={@tourney}>
+    <p>
+      Number of rounds: <%= @tourney.num_rounds %>
+    </p>
+
+    <p>
+      Created at: <%= @inserted_at %>
+    </p>
+  </div>
+
+  <div :if={@tourney} class="games-table-wrapper">
+    <h4>Games</h4>
+
+    <.table id="tourney-games-table" rows={@tourney.games}>
+      <:col :let={game} label="ID"><%= game.id %></:col>
+      <:col :let={game} label="Status"><%= game.status %></:col>
+      <:action :let={game}>
+        <.button phx-click="game_click" phx-value-game_id={game.id} class="nes-btn is-success">
+          Go To
+        </.button>
+      </:action>
+    </.table>
+  </div>
+</div>

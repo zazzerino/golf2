@@ -23,7 +23,8 @@ defmodule GolfWeb.GameLive do
          can_join_game?: false,
          join_requests: [],
          players: []
-       )}
+       )
+       |> stream(:chat_messages, [])}
     else
       _ ->
         {:ok,
@@ -66,7 +67,8 @@ defmodule GolfWeb.GameLive do
          can_join_game?: can_join_game?,
          join_requests: join_requests,
          players: players
-       )}
+       )
+       |> stream(:chat_messages, GamesDb.get_chat_messages(game_id))}
     else
       _ ->
         {:noreply, put_flash(socket, :error, "Game #{game_id} not found.")}
@@ -138,6 +140,14 @@ defmodule GolfWeb.GameLive do
   end
 
   @impl true
+  def handle_info({:chat_message, msg}, socket) do
+    {:noreply,
+     socket
+     |> stream_insert(:chat_messages, msg)
+     |> push_event("chat-msg-recv", %{msg: msg})}
+  end
+
+  @impl true
   def handle_event("start_game", _value, socket) when socket.assigns.user_is_host? do
     game = socket.assigns.game
     {:ok, game} = GamesDb.start_game(game)
@@ -167,6 +177,11 @@ defmodule GolfWeb.GameLive do
 
     :ok = broadcast(game.id, {:player_joined, game, req_user_id})
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("tourney_click", %{"tourney-id" => tourney_id}, socket) do
+    {:noreply, push_navigate(socket, to: ~p"/tourneys/#{tourney_id}")}
   end
 
   @impl true
@@ -228,6 +243,17 @@ defmodule GolfWeb.GameLive do
          :ok <- broadcast(game.id, {:game_event, game, event}) do
       {:noreply, assign(socket, game: game)}
     end
+  end
+
+  @impl true
+  def handle_event("submit_chat_msg", %{"text" => text}, socket)
+      when is_integer(socket.assigns.player_id) do
+    game_id = socket.assigns.game_id
+    player_id = socket.assigns.player_id
+    chat_msg = Golf.Games.ChatMsg.new(game_id, player_id, text)
+    {:ok, msg} = GamesDb.insert_chat_message(chat_msg)
+    :ok = broadcast(game_id, {:chat_message, msg})
+    {:noreply, push_event(socket, "chat-message-submitted", %{})}
   end
 
   defp hand_action(:hold), do: :swap

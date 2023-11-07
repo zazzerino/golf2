@@ -23,6 +23,8 @@ defmodule GolfWeb.Router do
       live "/", HomeLive
       live "/user", UserLive
       live "/games/:game_id", GameLive
+      live "/tourneys/opts", TourneyOptsLive
+      live "/tourneys/:tourney_id", TourneyLive
     end
   end
 

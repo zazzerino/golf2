@@ -6,6 +6,7 @@ defmodule Golf.Games.Game do
 
   schema "games" do
     belongs_to :host, Golf.Users.User
+    belongs_to :tourney, Golf.Games.Tourney
 
     has_many :players, Golf.Games.Player
     has_many :events, Golf.Games.GameEvent

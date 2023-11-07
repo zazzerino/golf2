@@ -32,12 +32,20 @@ defmodule GolfWeb.HomeLive do
   end
 
   @impl true
-  def handle_event("create_game", _, socket) do
+  def handle_event("create_game", _value, socket) do
     user = socket.assigns.user
     {:ok, game} = Golf.GamesDb.create_game(user)
-    game = Map.put(game, :host_username, user.username)
     :ok = Phoenix.PubSub.broadcast(Golf.PubSub, "games", {:game_created, game})
     {:noreply, push_navigate(socket, to: ~p"/games/#{game.id}")}
+  end
+
+  @impl true
+  def handle_event("create_tourney", _value, socket) do
+    # user = socket.assigns.user
+    # {:ok, tourney} = Golf.GamesDb.create_tourney(user)
+    # {:noreply, push_navigate(socket, to: ~p"/tourneys/#{tourney.id}")}
+    # {:noreply, push_navigate(socket, to: ~p"/tourneys/opts")}
+    {:noreply, push_navigate(socket, to: ~p"/tourneys/opts")}
   end
 
   @impl true

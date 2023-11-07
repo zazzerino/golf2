@@ -81,11 +81,22 @@ h2 {
 
 .username-form {
   margin-bottom: 2rem;
-  width: 50%;
+  width: 300px;
 }
 
 .username-form button {
   margin-top: -0.5rem;
+}
+
+#chat-messages-wrapper {
+  width: 600px;
+  margin-bottom: 1rem;
+}
+
+#chat-messages {
+  max-height: 7.5rem;
+  overflow-y: scroll;
+  list-style: none;
 }
 
 #game-canvas-wrapper {
@@ -152,3 +163,7 @@ h2 {
     opacity: 0;
   }
 }
+
+/* .tourney-opts form {
+  width: 300px;
+} */
